@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}403 — Sin acceso{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-1 text-muted">403</h1>
+  <p class="lead">No tienes permiso para acceder a esta página.</p>
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary">Ir al dashboard</a>
+</div>
+{% endblock %}

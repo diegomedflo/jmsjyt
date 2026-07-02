@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["chromium", "nss", "nspr", "atk", "cups", "dbus", "expat",
+           "libdrm", "libxcb", "libxcomposite", "libxdamage", "libxext",
+           "libxfixes", "libxrandr", "mesa", "gtk3", "pango", "cairo",
+           "alsa-lib"]
+
+[phases.install]
+cmds = [
+  "pip install -r requirements.txt",
+  "playwright install chromium"
+]
+
+[start]
+cmd = "gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"

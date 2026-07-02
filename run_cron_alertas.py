@@ -42,6 +42,7 @@ ADMIN_STATUS_GROUP = os.environ.get("ADMIN_STATUS_GROUP", "")
 
 with app.app_context():
     from app.models       import Configuracion
+    from app.services.partition_service import asegurar_particiones_proximos_meses
     from app.services.alertas_service import (
         ejecutar_alertas_global, formatear_reporte_ejecucion, hora_peru,
     )
@@ -51,6 +52,15 @@ with app.app_context():
     hora  = (ahora + timedelta(minutes=30)).hour
 
     cfg = Configuracion.get()
+
+    # Garantizar que existan las particiones del mes actual y los 2 siguientes.
+    # Costo mínimo: solo ejecuta SQL si la partición no existe.
+    try:
+        nuevas = asegurar_particiones_proximos_meses(meses_adelante=2)
+        if nuevas:
+            logging.info(f"Particiones creadas: {nuevas}")
+    except Exception as exc_part:
+        logging.warning(f"partition_service falló (no crítico): {exc_part}")
 
     if hora < cfg.hora_inicio or hora > cfg.hora_fin:
         print(

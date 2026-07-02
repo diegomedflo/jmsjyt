@@ -58,8 +58,9 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    # Ajusta usuario:contraseña según tu instalación local de PostgreSQL
     SQLALCHEMY_DATABASE_URI = (
-        _build_db_uri() or "mysql+pymysql://root:@localhost/jmsjyt"
+        _build_db_uri() or "postgresql://postgres:postgres@localhost/jmsjyt"
     )
     SQLALCHEMY_ECHO = False
     SESSION_COOKIE_SECURE = False

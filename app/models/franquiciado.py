@@ -5,6 +5,8 @@ import json
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy.dialects.postgresql import JSONB
+
 from app.extensions import db
 
 
@@ -21,7 +23,7 @@ class Franquiciado(db.Model):
     nombre             = db.Column(db.String(120), nullable=False)
     jt_user            = db.Column(db.String(120), nullable=False)
     jt_pass            = db.Column(db.String(255), nullable=False)
-    jt_token_cache     = db.Column(db.JSON, nullable=True)
+    jt_token_cache     = db.Column(JSONB, nullable=True)
     wa_grupo_id        = db.Column(db.String(120), nullable=False)
     wa_status_grupo_id = db.Column(db.String(120), nullable=True)
     textmebot_api_key  = db.Column(db.String(120), nullable=False)

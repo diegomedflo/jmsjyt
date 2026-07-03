@@ -13,8 +13,97 @@
 </head>
 <body>
 
-{% if current_user.is_authenticated %}
 <div class="app-shell">
+
+  <!-- ── Sidebar (solo autenticado) ───────────────────────── -->
+  {% if current_user.is_authenticated %}
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 8H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2zM6 13H4v-2h2v2zm14 0h-2v-2h2v2z"/>
+        </svg>
+      </div>
+      <span class="sidebar-logo-text">JMSJyT</span>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">General</div>
+      <nav class="sidebar-nav">
+        <a href="{{ url_for('admin.dashboard') }}"
+           class="{{ 'active' if request.endpoint == 'admin.dashboard' }}">
+          <i class="bi bi-grid-1x2"></i> Dashboard
+        </a>
+        <a href="{{ url_for('admin.franquiciados_lista') }}"
+           class="{{ 'active' if 'franquiciados' in (request.endpoint or '') or 'paquetes' in (request.endpoint or '') }}">
+          <i class="bi bi-building"></i> Franquiciados
+        </a>
+        <a href="{{ url_for('admin.cron_logs') }}"
+           class="{{ 'active' if request.endpoint == 'admin.cron_logs' }}">
+          <i class="bi bi-clock-history"></i> Cron Logs
+        </a>
+        <a href="{{ url_for('admin.alertas_lista') }}"
+           class="{{ 'active' if request.endpoint == 'admin.alertas_lista' }}">
+          <i class="bi bi-bell"></i> Alertas WA
+        </a>
+      </nav>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Sistema</div>
+      <nav class="sidebar-nav">
+        <a href="{{ url_for('admin.configuracion') }}"
+           class="{{ 'active' if request.endpoint == 'admin.configuracion' }}">
+          <i class="bi bi-gear"></i> Configuración
+        </a>
+      </nav>
+    </div>
+
+    <div class="sidebar-bottom">
+      <nav class="sidebar-nav">
+        <a href="{{ url_for('auth.logout') }}">
+          <i class="bi bi-box-arrow-right"></i> Salir
+        </a>
+      </nav>
+    </div>
+  </aside>
+  {% endif %}
+
+  <!-- ── Main wrapper ─────────────────────────────────────── -->
+  <div class="main-wrapper">
+
+    {% if current_user.is_authenticated %}
+    <div class="topbar">
+      <span class="topbar-title">{% block page_title %}{% endblock %}</span>
+      <div class="topbar-actions">
+        <span class="topbar-badge"><i class="bi bi-person-fill"></i> {{ current_user.username }}</span>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div style="padding: 0.75rem 1.75rem 0;" class="flash-container">
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Contenido — bloque definido UNA sola vez -->
+    <div class="main-content">
+      {% block content %}{% endblock %}
+    </div>
+
+  </div>
+</div>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>
+
 
   <!-- ── Sidebar ─────────────────────────────────────────── -->
   <aside class="sidebar">

@@ -1,115 +1,124 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Nuevo' if modo == 'nuevo' else 'Editar' }} Franquiciado — JMSJyT Admin{% endblock %}
+{% block page_title %}{{ 'Nuevo Franquiciado' if modo == 'nuevo' else 'Editar Franquiciado' }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="fw-bold mb-0">
-    <i class="bi bi-building me-2 text-primary"></i>
-    {{ 'Nuevo Franquiciado' if modo == 'nuevo' else 'Editar: ' + fq.nombre }}
-  </h2>
-  <a href="{{ url_for('admin.franquiciados_lista') }}" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-arrow-left me-1"></i>Volver
-  </a>
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>
+      <i class="bi bi-building"></i>
+      {{ 'Nuevo Franquiciado' if modo == 'nuevo' else 'Editar: ' + fq.nombre }}
+    </h1>
+    <a href="{{ url_for('admin.franquiciados_lista') }}"
+       style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.8rem; color:var(--text-secondary); margin-top:0.3rem;">
+      <i class="bi bi-arrow-left"></i> Volver a Franquiciados
+    </a>
+  </div>
 </div>
 
-<div class="row justify-content-center">
-  <div class="col-12 col-lg-8">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-4">
-        <form method="POST" novalidate>
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+<div style="max-width:720px;">
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-          <div class="row g-3">
+        <div style="display:flex; flex-direction:column; gap:1.5rem;">
 
-            <!-- Nombre -->
-            <div class="col-12">
-              <label class="form-label fw-semibold">Nombre del franquiciado *</label>
+          <!-- Datos generales -->
+          <div>
+            <div class="form-section"><span class="form-section-label">Datos del franquiciado</span></div>
+            <div class="form-group" style="margin-top:0.85rem;">
+              <label class="form-label">Nombre del franquiciado *</label>
               <input type="text" name="nombre" class="form-control"
-                     value="{{ form.nombre.data or '' }}" required />
-              {% if form.nombre.errors %}
-              <div class="text-danger small">{{ form.nombre.errors[0] }}</div>
-              {% endif %}
+                     value="{{ form.nombre.data or '' }}" required
+                     placeholder="Ej: Vasmat Lima Norte" />
+              {% if form.nombre.errors %}<span class="form-error">{{ form.nombre.errors[0] }}</span>{% endif %}
             </div>
+          </div>
 
-            <!-- JMS Credenciales -->
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Usuario JMS *</label>
-              <input type="text" name="jt_user" class="form-control font-monospace"
-                     value="{{ form.jt_user.data or '' }}" autocomplete="off" required />
-              <div class="form-text">Usuario en jms.jtlac.com</div>
-              {% if form.jt_user.errors %}
-              <div class="text-danger small">{{ form.jt_user.errors[0] }}</div>
-              {% endif %}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">
-                Contraseña JMS {{ '' if modo == 'nuevo' else '(dejar vacío para no cambiar)' }} {{ '*' if modo == 'nuevo' }}
-              </label>
-              <input type="password" name="jt_pass" class="form-control"
-                     autocomplete="new-password" />
-              {% if form.jt_pass.errors %}
-              <div class="text-danger small">{{ form.jt_pass.errors[0] }}</div>
-              {% endif %}
-            </div>
-
-            <!-- WhatsApp -->
-            <div class="col-12">
-              <hr class="my-2" />
-              <h6 class="text-muted fw-semibold">WhatsApp</h6>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">ID Grupo WA — Alertas *</label>
-              <input type="text" name="wa_grupo_id" class="form-control font-monospace"
-                     value="{{ form.wa_grupo_id.data or '' }}" required />
-              <div class="form-text">Ej: 120363411670493724@g.us</div>
-              {% if form.wa_grupo_id.errors %}
-              <div class="text-danger small">{{ form.wa_grupo_id.errors[0] }}</div>
-              {% endif %}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">ID Grupo WA — Monitoreo</label>
-              <input type="text" name="wa_status_grupo_id" class="form-control font-monospace"
-                     value="{{ form.wa_status_grupo_id.data or '' }}" />
-              <div class="form-text">Opcional. Grupo admin donde llega el estado de la corrida.</div>
-            </div>
-            <div class="col-md-8">
-              <label class="form-label fw-semibold">API Key textmebot *</label>
-              <input type="text" name="textmebot_api_key" class="form-control font-monospace"
-                     value="{{ form.textmebot_api_key.data or '' }}" required />
-              <div class="form-text">Varios franquiciados pueden compartir la misma key.</div>
-              {% if form.textmebot_api_key.errors %}
-              <div class="text-danger small">{{ form.textmebot_api_key.errors[0] }}</div>
-              {% endif %}
-            </div>
-
-            <!-- Estado -->
-            <div class="col-md-4 d-flex align-items-end">
-              <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" name="activo"
-                       id="chkActivo" {{ 'checked' if form.activo.data }}>
-                <label class="form-check-label fw-semibold" for="chkActivo">Activo</label>
+          <!-- Credenciales JMS -->
+          <div>
+            <div class="form-section"><span class="form-section-label">Credenciales JMS</span></div>
+            <div class="grid-2" style="margin-top:0.85rem;">
+              <div class="form-group">
+                <label class="form-label">Usuario JMS *</label>
+                <input type="text" name="jt_user" class="form-control"
+                       value="{{ form.jt_user.data or '' }}" autocomplete="off"
+                       required placeholder="PE04022" style="font-family:monospace;" />
+                <span class="form-hint">Usuario en jms.jtlac.com</span>
+                {% if form.jt_user.errors %}<span class="form-error">{{ form.jt_user.errors[0] }}</span>{% endif %}
+              </div>
+              <div class="form-group">
+                <label class="form-label">
+                  Contraseña JMS
+                  {% if modo != 'nuevo' %}<span style="font-weight:400; color:var(--text-muted);"> — vacío = sin cambios</span>{% else %}*{% endif %}
+                </label>
+                <input type="password" name="jt_pass" class="form-control"
+                       autocomplete="new-password" />
+                {% if form.jt_pass.errors %}<span class="form-error">{{ form.jt_pass.errors[0] }}</span>{% endif %}
               </div>
             </div>
+          </div>
 
-            <!-- Notas -->
-            <div class="col-12">
-              <label class="form-label fw-semibold">Notas internas</label>
-              <textarea name="notas" class="form-control" rows="3">{{ form.notas.data or '' }}</textarea>
+          <!-- WhatsApp -->
+          <div>
+            <div class="form-section"><span class="form-section-label">WhatsApp</span></div>
+            <div class="grid-2" style="margin-top:0.85rem;">
+              <div class="form-group">
+                <label class="form-label">ID Grupo WA — Alertas *</label>
+                <input type="text" name="wa_grupo_id" class="form-control"
+                       value="{{ form.wa_grupo_id.data or '' }}" required
+                       placeholder="120363411670493724@g.us" style="font-family:monospace;" />
+                <span class="form-hint">Ej: 120363411670493724@g.us</span>
+                {% if form.wa_grupo_id.errors %}<span class="form-error">{{ form.wa_grupo_id.errors[0] }}</span>{% endif %}
+              </div>
+              <div class="form-group">
+                <label class="form-label">ID Grupo WA — Monitoreo</label>
+                <input type="text" name="wa_status_grupo_id" class="form-control"
+                       value="{{ form.wa_status_grupo_id.data or '' }}"
+                       placeholder="Opcional" style="font-family:monospace;" />
+                <span class="form-hint">Grupo admin donde llega el estado de la corrida</span>
+              </div>
+              <div class="form-group col-full">
+                <label class="form-label">API Key textmebot *</label>
+                <input type="text" name="textmebot_api_key" class="form-control"
+                       value="{{ form.textmebot_api_key.data or '' }}" required
+                       style="font-family:monospace;" />
+                <span class="form-hint">Varios franquiciados pueden compartir la misma key</span>
+                {% if form.textmebot_api_key.errors %}<span class="form-error">{{ form.textmebot_api_key.errors[0] }}</span>{% endif %}
+              </div>
             </div>
+          </div>
 
-            <!-- Botones -->
-            <div class="col-12 d-flex justify-content-end gap-2 mt-2">
-              <a href="{{ url_for('admin.franquiciados_lista') }}"
-                 class="btn btn-outline-secondary">Cancelar</a>
-              <button type="submit" class="btn btn-primary">
-                <i class="bi bi-check-lg me-1"></i>Guardar
-              </button>
+          <!-- Estado y notas -->
+          <div>
+            <div class="form-section"><span class="form-section-label">Estado y notas</span></div>
+            <div style="margin-top:0.85rem; display:flex; flex-direction:column; gap:1rem;">
+              <label class="switch-wrap">
+                <input type="checkbox" name="activo" id="chkActivo" {{ 'checked' if form.activo.data }}>
+                Activo — el franquiciado participa en las corridas del cron
+              </label>
+              <div class="form-group">
+                <label class="form-label">Notas internas</label>
+                <textarea name="notas" class="form-control" rows="3"
+                          placeholder="Observaciones internas...">{{ form.notas.data or '' }}</textarea>
+              </div>
             </div>
+          </div>
 
-          </div><!-- /row -->
-        </form>
-      </div>
+          <!-- Botones -->
+          <div style="display:flex; justify-content:flex-end; gap:0.75rem; padding-top:0.75rem; border-top:1px solid var(--card-border);">
+            <a href="{{ url_for('admin.franquiciados_lista') }}" class="btn btn-outline">Cancelar</a>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg"></i> Guardar
+            </button>
+          </div>
+
+        </div>
+      </form>
     </div>
   </div>
 </div>
+
 {% endblock %}

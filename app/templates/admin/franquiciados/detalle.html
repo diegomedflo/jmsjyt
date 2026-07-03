@@ -1,159 +1,101 @@
 {% extends "base.html" %}
 {% block title %}{{ fq.nombre }} — JMSJyT Admin{% endblock %}
+{% block page_title %}Detalle Franquiciado{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-  <h2 class="fw-bold mb-0">
-    <i class="bi bi-building me-2 text-primary"></i>{{ fq.nombre }}
-    {% if fq.activo %}
-    <span class="badge bg-success fs-6 ms-2">Activo</span>
-    {% else %}
-    <span class="badge bg-secondary fs-6 ms-2">Inactivo</span>
-    {% endif %}
-  </h2>
-  <div class="d-flex gap-2">
-    <a href="{{ url_for('admin.franquiciados_editar', fq_id=fq.id) }}"
-       class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-pencil me-1"></i>Editar
-    </a>
-    <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}"
-       class="btn btn-primary btn-sm">
-      <i class="bi bi-upload me-1"></i>Importar paquetes
-    </a>
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>
+      <i class="bi bi-building"></i> {{ fq.nombre }}
+      {% if fq.activo %}
+        <span class="badge badge-green" style="margin-left:0.5rem; font-size:0.72rem; vertical-align:middle;">Activo</span>
+      {% else %}
+        <span class="badge badge-gray" style="margin-left:0.5rem; font-size:0.72rem; vertical-align:middle;">Inactivo</span>
+      {% endif %}
+    </h1>
     <a href="{{ url_for('admin.franquiciados_lista') }}"
-       class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-arrow-left me-1"></i>Volver
+       style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.8rem; color:var(--text-secondary); margin-top:0.3rem;">
+      <i class="bi bi-arrow-left"></i> Volver a Franquiciados
+    </a>
+  </div>
+  <div style="display:flex; gap:0.5rem; align-items:center;">
+    <a href="{{ url_for('admin.franquiciados_editar', fq_id=fq.id) }}" class="btn btn-outline btn-sm">
+      <i class="bi bi-pencil"></i> Editar
+    </a>
+    <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-upload"></i> Importar paquetes
     </a>
   </div>
 </div>
 
 <!-- Info del franquiciado -->
-<div class="row g-3 mb-4">
-  <div class="col-12 col-md-5">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-white fw-semibold">Datos de configuración</div>
-      <div class="card-body">
-        <dl class="row mb-0 small">
-          <dt class="col-5 text-muted">Usuario JMS</dt>
-          <dd class="col-7 font-monospace">{{ fq.jt_user }}</dd>
-          <dt class="col-5 text-muted">Grupo WA Alertas</dt>
-          <dd class="col-7 font-monospace text-truncate">{{ fq.wa_grupo_id }}</dd>
-          <dt class="col-5 text-muted">Grupo WA Monitor</dt>
-          <dd class="col-7 font-monospace text-truncate">{{ fq.wa_status_grupo_id or '—' }}</dd>
-          <dt class="col-5 text-muted">API Key</dt>
-          <dd class="col-7 font-monospace">{{ fq.textmebot_api_key[:12] }}…</dd>
-          <dt class="col-5 text-muted">Creado</dt>
-          <dd class="col-7">{{ fq.created_at.strftime('%d/%m/%Y') }}</dd>
-          {% if fq.notas %}
-          <dt class="col-5 text-muted">Notas</dt>
-          <dd class="col-7">{{ fq.notas }}</dd>
-          {% endif %}
-        </dl>
-      </div>
-    </div>
-  </div>
+<div class="grid-5-7">
 
-  <div class="col-12 col-md-7">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-white fw-semibold">Últimas alertas enviadas</div>
-      <div class="card-body p-0">
-        {% if alertas %}
-        <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Enviado</th>
-                <th>Tipo</th>
-                <th class="text-center">Estado</th>
-                <th>Respuesta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for al in alertas %}
-              <tr>
-                <td class="small">{{ al.enviado_at.strftime('%d/%m %H:%M') }}</td>
-                <td><span class="badge {{ 'bg-warning text-dark' if al.tipo == 'alerta' else 'bg-secondary' }}">
-                  {{ al.tipo }}</span></td>
-                <td class="text-center">
-                  <span class="badge {{ 'bg-success' if al.ok else 'bg-danger' }}">
-                    {{ 'OK' if al.ok else 'Error' }}
-                  </span>
-                </td>
-                <td class="small text-muted text-truncate" style="max-width:140px;">
-                  {{ al.respuesta_api or '—' }}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="text-muted p-3 mb-0 small">Sin alertas registradas.</p>
+  <!-- Datos de configuración -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-sliders"></i> Configuración</span>
+    </div>
+    <div class="card-body">
+      <div class="dl-grid">
+        <span class="dl-label">Usuario JMS</span>
+        <span class="dl-value mono">{{ fq.jt_user }}</span>
+
+        <span class="dl-label">Grupo WA Alertas</span>
+        <span class="dl-value mono">{{ fq.wa_grupo_id }}</span>
+
+        <span class="dl-label">Grupo WA Monitor</span>
+        <span class="dl-value mono">{{ fq.wa_status_grupo_id or '—' }}</span>
+
+        <span class="dl-label">API Key</span>
+        <span class="dl-value mono">{{ fq.textmebot_api_key[:12] }}…</span>
+
+        <span class="dl-label">Creado</span>
+        <span class="dl-value">{{ fq.created_at.strftime('%d/%m/%Y') }}</span>
+
+        {% if fq.notas %}
+        <span class="dl-label">Notas</span>
+        <span class="dl-value">{{ fq.notas }}</span>
         {% endif %}
       </div>
-      <div class="card-footer bg-white border-0">
-        <a href="{{ url_for('admin.alertas_lista', franquiciado_id=fq.id) }}"
-           class="btn btn-sm btn-outline-secondary">Ver todas</a>
-      </div>
     </div>
   </div>
-</div>
 
-<!-- Paquetes -->
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-box-seam me-1 text-secondary"></i>Paquetes (últimos 100)</span>
-    <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}"
-       class="btn btn-sm btn-outline-primary">
-      <i class="bi bi-upload me-1"></i>Importar
-    </a>
-  </div>
-  <div class="card-body p-0">
-    {% if paquetes %}
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle mb-0">
-        <thead class="table-light">
+  <!-- Últimas alertas -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-bell"></i> Últimas alertas</span>
+      <a href="{{ url_for('admin.alertas_lista', franquiciado_id=fq.id) }}"
+         class="btn btn-ghost btn-sm">Ver todas</a>
+    </div>
+    {% if alertas %}
+    <div class="table-wrapper">
+      <table>
+        <thead>
           <tr>
-            <th>Waybill</th>
-            <th class="text-center">Estado</th>
-            <th class="text-center">Intentos</th>
-            <th>Recojo</th>
-            <th>Último intento</th>
-            <th class="text-end">Acción</th>
+            <th>Enviado</th>
+            <th>Tipo</th>
+            <th style="text-align:center;">Estado</th>
+            <th>Respuesta</th>
           </tr>
         </thead>
         <tbody>
-          {% for pkg in paquetes %}
+          {% for al in alertas %}
           <tr>
-            <td class="font-monospace small">{{ pkg.waybill_no }}</td>
-            <td class="text-center">
-              {% set badgecls = {
-                'pendiente': 'bg-warning text-dark',
-                'entregado': 'bg-success',
-                'devuelto':  'bg-danger',
-                'cancelado': 'bg-secondary'
-              } %}
-              <span class="badge {{ badgecls[pkg.estado] }}">{{ pkg.estado }}</span>
+            <td style="white-space:nowrap;">{{ al.enviado_at.strftime('%d/%m %H:%M') }}</td>
+            <td>
+              <span class="badge {{ 'badge-yellow' if al.tipo == 'alerta' else 'badge-gray' }}">
+                {{ al.tipo }}
+              </span>
             </td>
-            <td class="text-center">{{ pkg.n_intentos }}</td>
-            <td class="small text-muted">
-              {{ pkg.fecha_recojo.strftime('%d/%m %H:%M') if pkg.fecha_recojo else '—' }}
+            <td style="text-align:center;">
+              <span class="badge {{ 'badge-green' if al.ok else 'badge-red' }}">
+                {{ 'OK' if al.ok else 'Error' }}
+              </span>
             </td>
-            <td class="small text-muted">
-              {{ pkg.ultimo_intento_at.strftime('%d/%m %H:%M') if pkg.ultimo_intento_at else '—' }}
-            </td>
-            <td class="text-end">
-              {% if pkg.estado == 'pendiente' %}
-              <form method="POST"
-                    action="{{ url_for('admin.paquetes_cancelar', pkg_id=pkg.id) }}"
-                    class="d-inline"
-                    onsubmit="return confirm('¿Cancelar {{ pkg.waybill_no }}?')">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                <button class="btn btn-sm btn-outline-danger" title="Cancelar">
-                  <i class="bi bi-x-circle"></i>
-                </button>
-              </form>
-              {% endif %}
+            <td style="max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-muted);">
+              {{ al.respuesta_api or '—' }}
             </td>
           </tr>
           {% endfor %}
@@ -161,8 +103,79 @@
       </table>
     </div>
     {% else %}
-    <p class="text-muted p-3 mb-0 small">Sin paquetes registrados.</p>
+    <div class="card-body" style="color:var(--text-muted); font-size:0.85rem;">Sin alertas registradas aún.</div>
     {% endif %}
   </div>
+
 </div>
+
+<!-- Paquetes -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="bi bi-box-seam"></i> Paquetes (últimos 100)</span>
+    <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-upload"></i> Importar
+    </a>
+  </div>
+  {% if paquetes %}
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Waybill</th>
+          <th style="text-align:center;">Estado</th>
+          <th style="text-align:center;">Intentos</th>
+          <th>Recojo</th>
+          <th>Último intento</th>
+          <th style="text-align:right;">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pkg in paquetes %}
+        <tr>
+          <td style="font-family:monospace;">{{ pkg.waybill_no }}</td>
+          <td style="text-align:center;">
+            {% set badgecls = {
+              'pendiente': 'badge-yellow',
+              'entregado': 'badge-green',
+              'devuelto':  'badge-red',
+              'cancelado': 'badge-gray'
+            } %}
+            <span class="badge {{ badgecls[pkg.estado] }}">{{ pkg.estado }}</span>
+          </td>
+          <td style="text-align:center; color:var(--text-secondary);">{{ pkg.n_intentos }}</td>
+          <td style="color:var(--text-muted); white-space:nowrap;">
+            {{ pkg.fecha_recojo.strftime('%d/%m %H:%M') if pkg.fecha_recojo else '—' }}
+          </td>
+          <td style="color:var(--text-muted); white-space:nowrap;">
+            {{ pkg.ultimo_intento_at.strftime('%d/%m %H:%M') if pkg.ultimo_intento_at else '—' }}
+          </td>
+          <td style="text-align:right;">
+            {% if pkg.estado == 'pendiente' %}
+            <form method="POST"
+                  action="{{ url_for('admin.paquetes_cancelar', pkg_id=pkg.id) }}"
+                  style="display:inline;"
+                  onsubmit="return confirm('¿Cancelar {{ pkg.waybill_no }}?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button class="btn btn-danger btn-sm btn-icon" title="Cancelar">
+                <i class="bi bi-x-circle"></i>
+              </button>
+            </form>
+            {% else %}
+            <span style="color:var(--text-muted);">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state" style="padding:2rem;">
+    <i class="bi bi-box-seam"></i>
+    <p>Sin paquetes registrados.</p>
+  </div>
+  {% endif %}
+</div>
+
 {% endblock %}

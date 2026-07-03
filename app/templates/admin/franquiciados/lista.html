@@ -1,83 +1,93 @@
 {% extends "base.html" %}
 {% block title %}Franquiciados — JMSJyT Admin{% endblock %}
+{% block page_title %}Franquiciados{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="fw-bold mb-0"><i class="bi bi-building me-2 text-primary"></i>Franquiciados</h2>
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h1><i class="bi bi-building"></i> Franquiciados</h1>
+    <p>Gestión de franquiciados activos en el sistema</p>
+  </div>
   <a href="{{ url_for('admin.franquiciados_nuevo') }}" class="btn btn-primary">
-    <i class="bi bi-plus-circle me-1"></i>Nuevo
+    <i class="bi bi-plus-lg"></i> Nuevo franquiciado
   </a>
 </div>
 
 {% if franquiciados %}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>Nombre</th>
-            <th>Usuario JMS</th>
-            <th>Grupo WA</th>
-            <th class="text-center">Pendientes</th>
-            <th class="text-center">Estado</th>
-            <th class="text-end">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for fq in franquiciados %}
-          <tr>
-            <td class="text-muted small">{{ fq.id }}</td>
-            <td>
+<div class="card">
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nombre</th>
+          <th>Usuario JMS</th>
+          <th>Grupo WA Alertas</th>
+          <th style="text-align:center;">Pendientes</th>
+          <th style="text-align:center;">Estado</th>
+          <th style="text-align:right;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fq in franquiciados %}
+        <tr>
+          <td style="color:var(--text-muted);">{{ fq.id }}</td>
+          <td>
+            <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id) }}"
+               style="font-weight:600;">{{ fq.nombre }}</a>
+          </td>
+          <td style="font-family:monospace; color:var(--text-secondary);">{{ fq.jt_user }}</td>
+          <td style="font-family:monospace; color:var(--text-muted); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            {{ fq.wa_grupo_id }}
+          </td>
+          <td style="text-align:center;">
+            <span class="badge {{ 'badge-yellow' if fq.paquetes_pendientes_count > 0 else 'badge-gray' }}">
+              {{ fq.paquetes_pendientes_count }}
+            </span>
+          </td>
+          <td style="text-align:center;">
+            {% if fq.activo %}
+              <span class="badge badge-green">Activo</span>
+            {% else %}
+              <span class="badge badge-gray">Inactivo</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex; gap:0.35rem; justify-content:flex-end;">
               <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id) }}"
-                 class="fw-semibold text-decoration-none">{{ fq.nombre }}</a>
-            </td>
-            <td class="text-muted small font-monospace">{{ fq.jt_user }}</td>
-            <td class="text-muted small font-monospace">{{ fq.wa_grupo_id[:30] }}…</td>
-            <td class="text-center">
-              <span class="badge bg-warning text-dark">{{ fq.paquetes_pendientes_count }}</span>
-            </td>
-            <td class="text-center">
-              {% if fq.activo %}
-              <span class="badge bg-success">Activo</span>
-              {% else %}
-              <span class="badge bg-secondary">Inactivo</span>
-              {% endif %}
-            </td>
-            <td class="text-end">
-              <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id) }}"
-                 class="btn btn-sm btn-outline-primary me-1" title="Ver detalle">
+                 class="btn btn-ghost btn-sm btn-icon" title="Ver detalle">
                 <i class="bi bi-eye"></i>
               </a>
               <a href="{{ url_for('admin.franquiciados_editar', fq_id=fq.id) }}"
-                 class="btn btn-sm btn-outline-secondary me-1" title="Editar">
+                 class="btn btn-ghost btn-sm btn-icon" title="Editar">
                 <i class="bi bi-pencil"></i>
               </a>
-              <form method="POST"
-                    action="{{ url_for('admin.franquiciados_toggle', fq_id=fq.id) }}"
-                    class="d-inline">
+              <form method="POST" action="{{ url_for('admin.franquiciados_toggle', fq_id=fq.id) }}" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                <button type="submit" class="btn btn-sm btn-outline-{{ 'warning' if fq.activo else 'success' }}"
+                <button type="submit"
+                        class="btn btn-sm btn-icon {{ 'btn-danger' if fq.activo else 'btn-ghost' }}"
                         title="{{ 'Desactivar' if fq.activo else 'Activar' }}">
-                  <i class="bi bi-{{ 'pause' if fq.activo else 'play' }}"></i>
+                  <i class="bi bi-{{ 'pause-fill' if fq.activo else 'play-fill' }}"></i>
                 </button>
               </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
+
 {% else %}
-<div class="text-center py-5 text-muted">
-  <i class="bi bi-building display-4 opacity-25"></i>
-  <p class="mt-3">No hay franquiciados registrados aún.</p>
+<div class="card empty-state">
+  <i class="bi bi-building"></i>
+  <p>No hay franquiciados registrados aún.</p>
   <a href="{{ url_for('admin.franquiciados_nuevo') }}" class="btn btn-primary">
-    <i class="bi bi-plus-circle me-1"></i>Crear el primero
+    <i class="bi bi-plus-lg"></i> Crear el primero
   </a>
 </div>
 {% endif %}
+
 {% endblock %}

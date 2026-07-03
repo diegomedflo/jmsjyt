@@ -246,9 +246,9 @@
         <tr>
           <th>Waybill</th>
           <th style="text-align:center;width:100px;">Estado</th>
-          <th style="text-align:center;width:70px;">Intentos</th>
+          <th style="text-align:center;width:70px;">Int. fallidos</th>
           <th style="width:100px;">Recojo</th>
-          <th style="width:100px;">Último intento</th>
+          <th style="width:105px;">Últ. intento fallido</th>
           <th style="width:130px;">Última gestión</th>
           <th style="text-align:right;width:65px;">Acción</th>
         </tr>
@@ -273,14 +273,16 @@
           <td style="white-space:nowrap;font-size:0.8rem;">
             {% if pkg.ultima_gestion_at %}
               <span style="color:var(--text-muted);">{{ pkg.ultima_gestion_at.strftime('%d/%m/%y %H:%M') }}</span>
-              {% set delta_h = ((now - pkg.ultima_gestion_at).total_seconds() / 3600) | round(0, 'floor') | int %}
-              {% if delta_h < 1 %}
-                <span style="color:var(--accent);font-size:0.75rem;"> hace &lt;1h</span>
-              {% elif delta_h < 24 %}
-                <span style="color:var(--warning);font-size:0.75rem;"> hace {{ delta_h }}h</span>
-              {% else %}
-                {% set delta_d = (delta_h / 24) | round(0, 'floor') | int %}
-                <span style="color:var(--negative);font-size:0.75rem;"> hace {{ delta_d }}d</span>
+              {% if pkg.estado == 'pendiente' %}
+                {% set delta_h = ((now - pkg.ultima_gestion_at).total_seconds() / 3600) | round(0, 'floor') | int %}
+                {% if delta_h < 1 %}
+                  <span style="color:var(--accent);font-size:0.75rem;"> hace &lt;1h</span>
+                {% elif delta_h < 24 %}
+                  <span style="color:var(--warning);font-size:0.75rem;"> hace {{ delta_h }}h</span>
+                {% else %}
+                  {% set delta_d = (delta_h / 24) | round(0, 'floor') | int %}
+                  <span style="color:var(--negative);font-size:0.75rem;"> hace {{ delta_d }}d</span>
+                {% endif %}
               {% endif %}
             {% else %}
               <span style="color:var(--text-muted);">Sin gestiones</span>

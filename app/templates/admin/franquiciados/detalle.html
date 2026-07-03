@@ -119,6 +119,76 @@
 
 </div>
 
+<!-- Acciones de importación / sincronización -->
+<div class="card" style="margin-bottom:1.25rem;">
+  <div class="card-header">
+    <span class="card-title"><i class="bi bi-cloud-download"></i> Obtener paquetes desde JMS</span>
+  </div>
+  <div class="card-body">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem;">
+
+      <!-- Sincronizar automático -->
+      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem;">
+        <div style="font-weight:600; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;">
+          <i class="bi bi-arrow-repeat" style="color:var(--color-accent); font-size:1.1rem;"></i>
+          Sincronizar desde JMS
+        </div>
+        <p style="font-size:0.8rem; color:var(--color-text-secondary); margin:0; line-height:1.5;">
+          Extrae automáticamente todos los paquetes asignados a esta cuenta
+          directamente desde la API de J&amp;T. Resuelve el captcha con OpenCV
+          y pagina todos los resultados.
+        </p>
+        <form method="POST" action="{{ url_for('admin.paquetes_sincronizar', fq_id=fq.id) }}"
+              style="margin:0; margin-top:auto;"
+              onsubmit="
+                this.querySelector('button').disabled = true;
+                this.querySelector('button').innerHTML = '<i class=\'bi bi-hourglass-split\'></i> Sincronizando…';
+                return true;
+              ">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="btn btn-primary" style="width:100%;">
+            <i class="bi bi-arrow-repeat"></i> Ejecutar scraper ahora
+          </button>
+        </form>
+      </div>
+
+      <!-- Importar Excel -->
+      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem;">
+        <div style="font-weight:600; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;">
+          <i class="bi bi-file-earmark-excel" style="color:#1a7f3c; font-size:1.1rem;"></i>
+          Importar Excel de JMS
+        </div>
+        <p style="font-size:0.8rem; color:var(--color-text-secondary); margin:0; line-height:1.5;">
+          Sube un archivo <strong>.xlsx</strong> exportado manualmente desde el portal JMS
+          (Indicadores operativos → Monitoreo de entrada al puerto → Exportar).
+          Se guarda una copia en Google Drive.
+        </p>
+        <a href="{{ url_for('admin.paquetes_importar_excel', fq_id=fq.id) }}"
+           class="btn btn-outline" style="width:100%; text-align:center; margin-top:auto;">
+          <i class="bi bi-upload"></i> Subir Excel
+        </a>
+      </div>
+
+      <!-- Importar texto manual -->
+      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem;">
+        <div style="font-weight:600; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;">
+          <i class="bi bi-input-cursor-text" style="color:var(--color-text-secondary); font-size:1.1rem;"></i>
+          Importar códigos (texto)
+        </div>
+        <p style="font-size:0.8rem; color:var(--color-text-secondary); margin:0; line-height:1.5;">
+          Pega una lista de números de guía manualmente, uno por línea.
+          Útil para agregar paquetes puntuales sin pasar por el portal.
+        </p>
+        <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}"
+           class="btn btn-outline" style="width:100%; text-align:center; margin-top:auto;">
+          <i class="bi bi-list-ul"></i> Ingresar códigos
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- Paquetes -->
 <div class="card">
   <div class="card-header">

@@ -1,0 +1,167 @@
+/* =====================================================
+   Login Page — JMSJyT
+   Estilo inspirado en la UI de SmartNest
+   ===================================================== */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #EEF2F7;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+/* ── Página / fondo ──────────────────────────────── */
+.login-page {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ── Card ────────────────────────────────────────── */
+.login-card {
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.10);
+  padding: 2.5rem 2.25rem 2.75rem;
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ── Header / brand ──────────────────────────────── */
+.login-header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.login-brand {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #2563EB;
+  letter-spacing: -0.01em;
+}
+
+/* ── Título ──────────────────────────────────────── */
+.login-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.25;
+  margin-bottom: 1.75rem;
+  text-align: center;
+}
+
+/* ── Alerta flash ────────────────────────────────── */
+.login-alert {
+  font-size: 0.85rem;
+  border-radius: 10px;
+  padding: 0.65rem 0.9rem;
+  margin-bottom: 1.25rem;
+}
+
+.login-alert--danger  { background: #FEE2E2; color: #991B1B; }
+.login-alert--warning { background: #FEF3C7; color: #92400E; }
+.login-alert--success { background: #D1FAE5; color: #065F46; }
+
+/* ── Formulario ──────────────────────────────────── */
+.login-form { display: flex; flex-direction: column; gap: 1.1rem; }
+
+.form-field { display: flex; flex-direction: column; gap: 0.45rem; }
+
+.form-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ── Input wrapper ───────────────────────────────── */
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrap input {
+  width: 100%;
+  background: #F3F5F8;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  padding: 0.78rem 1rem 0.78rem 2.75rem;
+  font-size: 0.95rem;
+  color: #111827;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  outline: none;
+  font-family: inherit;
+}
+
+.input-wrap input::placeholder { color: #9CA3AF; }
+
+.input-wrap input:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #fff;
+}
+
+.input-icon {
+  position: absolute;
+  left: 0.9rem;
+  color: #9CA3AF;
+  font-size: 1rem;
+  pointer-events: none;
+}
+
+/* ── Toggle contraseña ───────────────────────────── */
+.toggle-pw {
+  position: absolute;
+  right: 0.9rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9CA3AF;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.toggle-pw:hover { color: #374151; }
+
+/* ── Botón login ─────────────────────────────────── */
+.btn-login {
+  margin-top: 0.5rem;
+  background: #2563EB;
+  color: #ffffff;
+  border: none;
+  border-radius: 50px;
+  padding: 0.85rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  letter-spacing: 0.01em;
+  transition: background 0.18s, transform 0.1s, box-shadow 0.18s;
+  font-family: inherit;
+}
+
+.btn-login:hover {
+  background: #1D4ED8;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+}
+
+.btn-login:active { transform: scale(0.98); }
+
+/* ── Responsive — escritorio ancho ──────────────── */
+@media (min-width: 768px) {
+  .login-card {
+    padding: 3rem 3rem 3.25rem;
+    max-width: 460px;
+  }
+
+  .login-title { font-size: 1.8rem; }
+}

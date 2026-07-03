@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Importar Excel — {{ fq.nombre }}{% endblock %}
+{% block page_title %}Importar Excel J&T{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h1><i class="bi bi-file-earmark-excel"></i> Importar Excel J&T</h1>
+    <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id) }}"
+       style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.8rem; color:var(--color-text-secondary); margin-top:0.3rem;">
+      <i class="bi bi-arrow-left"></i> Volver a {{ fq.nombre }}
+    </a>
+  </div>
+  <div class="kpi-card" style="min-width:180px; text-align:center;">
+    <div class="kpi-label">Franquiciado</div>
+    <div class="kpi-value" style="font-size:1rem;">{{ fq.nombre }}</div>
+  </div>
+</div>
+
+<div style="max-width:700px; display:flex; flex-direction:column; gap:1.25rem;">
+
+  <!-- ── Formulario de carga ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-upload"></i> Subir archivo Excel</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:0.85rem; color:var(--color-text-secondary); margin-bottom:1.25rem;">
+        Sube el archivo <strong>.xlsx</strong> exportado desde
+        <strong>JMS → Indicadores operativos → Monitoreo de entrada al puerto del nodo (Nuevo) → Detalles → Exportar</strong>.
+        El sistema extraerá automáticamente la columna <em>Número de Guía</em>
+        y agregará solo los códigos nuevos (los duplicados se ignoran).
+      </p>
+
+      <form method="POST" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        <div class="form-group" style="margin-bottom:1.5rem;">
+          <label class="form-label" for="excel_file">
+            Archivo Excel <span style="color:var(--color-danger);">*</span>
+          </label>
+          <input
+            type="file"
+            id="excel_file"
+            name="excel_file"
+            accept=".xlsx,.xls"
+            required
+            class="form-control"
+            style="padding: 0.45rem 0.75rem;"
+          />
+          {% if form.excel_file.errors %}
+            {% for err in form.excel_file.errors %}
+              <p style="color:var(--color-danger); font-size:0.8rem; margin-top:0.3rem;">{{ err }}</p>
+            {% endfor %}
+          {% endif %}
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+          <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id) }}" class="btn btn-outline">Cancelar</a>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-file-earmark-excel"></i> Importar paquetes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Instrucciones ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-info-circle"></i> Cómo obtener el Excel desde JMS</span>
+    </div>
+    <div class="card-body">
+      <ol style="font-size:0.85rem; color:var(--color-text-secondary); line-height:1.9; padding-left:1.2rem; margin:0;">
+        <li>Inicia sesión en <a href="https://jms.jtlac.com" target="_blank" style="color:var(--color-accent);">jms.jtlac.com</a></li>
+        <li>Ve a <strong>Indicadores operativos → Monitoreo de entrada al puerto del nodo (Nuevo)</strong></li>
+        <li>Haz clic en la pestaña <strong>Detalles</strong></li>
+        <li>En <em>Fecha</em>, elige una fecha de inicio antigua (ej. 1 de junio) y la fecha más reciente disponible como fin</li>
+        <li>Haz clic en <strong>Buscar</strong> para ver los paquetes</li>
+        <li>Haz clic en <strong>Exportar</strong> (junto al botón Buscar)</li>
+        <li>Haz clic en <strong>Centro de descargas</strong> para abrir el modal</li>
+        <li>Cuando el estado diga <em>Terminado</em>, haz clic en el ícono de descarga (columna <em>Operación</em>)</li>
+        <li>Sube el archivo .xlsx descargado aquí</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ── Historial de importaciones ── -->
+  {% set historial = fq.excel_imports.limit(10).all() %}
+  {% if historial %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-clock-history"></i> Últimas importaciones</span>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Archivo</th>
+            <th style="text-align:center;">Total</th>
+            <th style="text-align:center;">Nuevos</th>
+            <th style="text-align:center;">Dup.</th>
+            <th style="text-align:center;">Modo</th>
+            <th style="text-align:center;">Drive</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for imp in historial %}
+          <tr>
+            <td style="white-space:nowrap; font-size:0.8rem;">{{ imp.imported_at.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td style="font-size:0.8rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              {{ imp.filename }}
+            </td>
+            <td style="text-align:center;">{{ imp.total_waybills }}</td>
+            <td style="text-align:center;">
+              <span class="badge badge-green">{{ imp.nuevos }}</span>
+            </td>
+            <td style="text-align:center;">
+              <span class="badge badge-gray">{{ imp.duplicados }}</span>
+            </td>
+            <td style="text-align:center;">
+              <span class="badge {% if imp.import_mode == 'auto' %}badge-blue{% else %}badge-gray{% endif %}">
+                {{ imp.import_mode }}
+              </span>
+            </td>
+            <td style="text-align:center;">
+              {% if imp.drive_file_id %}
+                <a href="{{ imp.drive_url }}" target="_blank" title="Ver en Drive"
+                   style="color:var(--color-accent);">
+                  <i class="bi bi-cloud-check"></i>
+                </a>
+              {% else %}
+                <span style="color:var(--color-text-secondary);">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}

@@ -1,5 +1,6 @@
 """Formularios WTForms del panel de administración."""
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import (
     BooleanField, FloatField, IntegerField, PasswordField,
     StringField, TextAreaField,
@@ -38,6 +39,17 @@ class ImportarWaybillsForm(FlaskForm):
         "Códigos de guía (uno por línea)",
         validators=[DataRequired(), Length(max=50000)],
         description="Ingresa los códigos JyT separados por saltos de línea.",
+    )
+
+
+class ImportarExcelForm(FlaskForm):
+    """Formulario para subir un Excel exportado desde el portal J&T JMS."""
+    excel_file = FileField(
+        "Archivo Excel (.xlsx)",
+        validators=[
+            FileRequired(message="Selecciona un archivo Excel."),
+            FileAllowed(["xlsx", "xls"], "Solo se permiten archivos Excel (.xlsx / .xls)."),
+        ],
     )
 
 

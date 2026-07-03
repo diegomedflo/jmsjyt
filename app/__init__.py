@@ -35,6 +35,9 @@ def _init_extensions(app: Flask) -> None:
     migrate.init_app(app, db)
     csrf.init_app(app)
     limiter.init_app(app)
+    # Lazy import to avoid circular dependency (services.__init__ imports from extensions)
+    from app.services.google_drive_service import google_drive_service
+    google_drive_service.init_app(app)
 
 
 def _register_blueprints(app: Flask) -> None:

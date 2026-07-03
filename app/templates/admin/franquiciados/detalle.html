@@ -19,13 +19,23 @@
       <i class="bi bi-arrow-left"></i> Volver a Franquiciados
     </a>
   </div>
-  <div style="display:flex; gap:0.5rem; align-items:center;">
+  <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
     <a href="{{ url_for('admin.franquiciados_editar', fq_id=fq.id) }}" class="btn btn-outline btn-sm">
       <i class="bi bi-pencil"></i> Editar
     </a>
-    <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}" class="btn btn-primary btn-sm">
-      <i class="bi bi-upload"></i> Importar paquetes
+    <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}" class="btn btn-outline btn-sm">
+      <i class="bi bi-input-cursor-text"></i> Importar (texto)
     </a>
+    <a href="{{ url_for('admin.paquetes_importar_excel', fq_id=fq.id) }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-file-earmark-excel"></i> Importar Excel
+    </a>
+    <form method="POST" action="{{ url_for('admin.paquetes_sincronizar', fq_id=fq.id) }}"
+          style="margin:0;" onsubmit="return confirm('¿Sincronizar waybills automáticamente desde el portal J&T? Puede tardar hasta 60 segundos.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--color-accent); color:var(--color-accent);">
+        <i class="bi bi-arrow-repeat"></i> Sincronizar
+      </button>
+    </form>
   </div>
 </div>
 

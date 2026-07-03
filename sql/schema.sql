@@ -217,6 +217,24 @@ CREATE TABLE IF NOT EXISTS configuracion (
 INSERT INTO configuracion (id) VALUES (1) ON CONFLICT DO NOTHING;
 
 
+-- ── Excel Imports Log ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS excel_imports (
+    id              SERIAL       PRIMARY KEY,
+    franquiciado_id INTEGER      NOT NULL
+                    REFERENCES franquiciados(id) ON DELETE CASCADE,
+    filename        VARCHAR(255) NOT NULL,
+    drive_file_id   VARCHAR(100),
+    total_waybills  INTEGER      NOT NULL DEFAULT 0,
+    nuevos          INTEGER      NOT NULL DEFAULT 0,
+    duplicados      INTEGER      NOT NULL DEFAULT 0,
+    import_mode     VARCHAR(20)  NOT NULL DEFAULT 'manual',
+    imported_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_excel_imports_franq
+    ON excel_imports(franquiciado_id, imported_at DESC);
+
+
 -- ── Admin user inicial ────────────────────────────────────────
 -- usuario: admin | contrasena: Mateo1997
 INSERT INTO admin_users (username, password_hash)

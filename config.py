@@ -48,6 +48,13 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     ITEMS_PER_PAGE = 20
 
+    # Google Drive (backup de Excels importados)
+    GOOGLE_DRIVE_FOLDER_ID  = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "1Uq8Po3FBcI37wB1QTmFyZi4NjQsDcHSM")
+    DRIVE_TOKEN_PICKLE_PATH = os.environ.get("DRIVE_TOKEN_PICKLE_PATH")
+
+    # Límite de subida de archivos (10 MB)
+    MAX_CONTENT_LENGTH = 10 * 1024 * 1024
+
     # Seguridad de sesión
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"

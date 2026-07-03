@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from flask import (
-    flash, redirect, render_template, request, url_for,
+    flash, redirect, render_template, request, url_for, current_app,
 )
 from flask_login import login_required
 
@@ -11,8 +11,9 @@ from app.models import (
     AdminUser, AlertaLog, Configuracion, CronLog,
     Franquiciado, Paquete,
 )
+from app.models.excel_import import ExcelImport
 
-from .forms import ConfiguracionForm, FranquiciadoForm, ImportarWaybillsForm
+from .forms import ConfiguracionForm, FranquiciadoForm, ImportarWaybillsForm, ImportarExcelForm
 from . import admin_bp
 
 
@@ -160,6 +161,127 @@ def paquetes_importar(fq_id: int):
         return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
 
     return render_template("admin/paquetes/importar.html", form=form, fq=fq)
+
+
+# ── Importar Excel (J&T "Monitoreo entrada al puerto") ───────────────────────
+
+@admin_bp.route("/franquiciados/<int:fq_id>/paquetes/importar-excel", methods=["GET", "POST"])
+@login_required
+def paquetes_importar_excel(fq_id: int):
+    """Sube un Excel exportado desde JMS y agrega sus waybills al franquiciado."""
+    from app.services.importar_service import parse_excel_waybills, import_waybills
+    from app.services.google_drive_service import google_drive_service as drive_service
+
+    fq   = db.get_or_404(Franquiciado, fq_id)
+    form = ImportarExcelForm()
+
+    if form.validate_on_submit():
+        uploaded = form.excel_file.data
+        file_bytes = uploaded.read()
+        filename   = uploaded.filename
+
+        # 1. Parsear Excel
+        try:
+            waybills = parse_excel_waybills(file_bytes)
+        except Exception as exc:
+            flash(f"Error al leer el Excel: {exc}", "danger")
+            return render_template("admin/paquetes/importar_excel.html", form=form, fq=fq)
+
+        if not waybills:
+            flash("El Excel no contiene waybills válidos.", "warning")
+            return render_template("admin/paquetes/importar_excel.html", form=form, fq=fq)
+
+        # 2. Subir a Google Drive (si hay credenciales)
+        drive_file_id = None
+        folder_id = current_app.config.get("GOOGLE_DRIVE_FOLDER_ID")
+        if folder_id:
+            try:
+                drive_file_id = drive_service.upload_file(
+                    file_bytes=file_bytes,
+                    filename=filename,
+                    mime_type=(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        if filename.lower().endswith(".xlsx")
+                        else "application/vnd.ms-excel"
+                    ),
+                    folder_id=folder_id,
+                )
+                flash(
+                    f'Excel guardado en Drive. '
+                    f'<a href="https://drive.google.com/file/d/{drive_file_id}/view" '
+                    f'target="_blank">Ver archivo</a>',
+                    "info",
+                )
+            except Exception as exc:
+                current_app.logger.warning(f"Drive upload falló: {exc}")
+                flash("No se pudo subir el Excel a Google Drive (credenciales no configuradas o error de red).", "warning")
+
+        # 3. Importar a BD
+        result = import_waybills(
+            franquiciado_id=fq_id,
+            waybills=waybills,
+            filename=filename,
+            drive_file_id=drive_file_id,
+            import_mode="manual",
+        )
+
+        flash(
+            f"{result['nuevos']} paquete(s) agregado(s). "
+            f"{result['duplicados']} duplicado(s) ignorado(s). "
+            f"Total en Excel: {result['total']}.",
+            "success",
+        )
+        return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+    return render_template("admin/paquetes/importar_excel.html", form=form, fq=fq)
+
+
+# ── Sincronizar automáticamente desde el portal J&T ─────────────────────────
+
+@admin_bp.route("/franquiciados/<int:fq_id>/paquetes/sincronizar", methods=["POST"])
+@login_required
+def paquetes_sincronizar(fq_id: int):
+    """Usa el scraper OutletMonitor para obtener waybills directamente del portal."""
+    from datetime import date
+    from jt_scraper.outlet_monitor import OutletMonitor
+    from jt_scraper.instance_config import JTInstanceConfig
+    from app.services.importar_service import import_waybills
+
+    fq = db.get_or_404(Franquiciado, fq_id)
+
+    instance_cfg = JTInstanceConfig(
+        jt_user=fq.jt_user,
+        jt_pass=fq.jt_pass,
+        token_getter=fq.get_token_cache,
+        token_setter=lambda v: (fq.set_token_cache(v), db.session.commit()),
+    )
+
+    try:
+        monitor    = OutletMonitor(instance_cfg)
+        start_date = date.today().replace(day=1).isoformat()  # primer día del mes
+        end_date   = date.today().isoformat()
+        waybills   = monitor.fetch_waybills(start_date, end_date)
+
+        if not waybills:
+            flash("El scraper no encontró waybills en el portal.", "warning")
+            return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+        result = import_waybills(
+            franquiciado_id=fq_id,
+            waybills=waybills,
+            filename=f"auto_sync_{end_date}.xlsx",
+            import_mode="auto",
+        )
+        flash(
+            f"Sincronización completa: {result['nuevos']} nuevo(s), "
+            f"{result['duplicados']} duplicado(s). Total encontrado: {result['total']}.",
+            "success",
+        )
+    except Exception as exc:
+        current_app.logger.exception(f"Error en sincronización franq={fq_id}")
+        flash(f"Error en sincronización: {exc}", "danger")
+
+    return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
 
 
 @admin_bp.route("/paquetes/<int:pkg_id>/cancelar", methods=["POST"])

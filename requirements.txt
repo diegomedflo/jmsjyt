@@ -7,7 +7,7 @@ Flask-WTF==1.2.2
 Flask-Limiter==3.9.0
 
 # ── Base de datos ──────────────────────────────────────────────
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.10
 
 # ── Scraper J&T ────────────────────────────────────────────────
 playwright==1.50.0

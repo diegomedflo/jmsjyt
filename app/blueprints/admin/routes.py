@@ -242,12 +242,14 @@ def paquetes_importar_excel(fq_id: int):
 @login_required
 def paquetes_sincronizar(fq_id: int):
     """Usa el scraper OutletMonitor para obtener waybills directamente del portal."""
-    from datetime import date
+    from datetime import date, timedelta
     from jt_scraper.outlet_monitor import OutletMonitor
     from jt_scraper.instance_config import JTInstanceConfig
     from app.services.importar_service import import_waybills
+    from app.models import Configuracion
 
-    fq = db.get_or_404(Franquiciado, fq_id)
+    fq  = db.get_or_404(Franquiciado, fq_id)
+    cfg = Configuracion.get()
 
     instance_cfg = JTInstanceConfig(
         jt_user=fq.jt_user,
@@ -258,9 +260,9 @@ def paquetes_sincronizar(fq_id: int):
 
     try:
         monitor    = OutletMonitor(instance_cfg)
-        start_date = date.today().replace(day=1).isoformat()  # primer día del mes
+        start_date = (date.today() - timedelta(days=cfg.sync_dias_atras)).isoformat()
         end_date   = date.today().isoformat()
-        waybills   = monitor.fetch_waybills(start_date, end_date)
+        waybills   = monitor.fetch_waybills(start_date, end_date, time_type=cfg.sync_time_type)
 
         if not waybills:
             flash("El scraper no encontró waybills en el portal.", "warning")
@@ -336,12 +338,14 @@ def configuracion():
     form = ConfiguracionForm(obj=cfg)
 
     if form.validate_on_submit():
-        cfg.umbral_dia     = form.umbral_dia.data
-        cfg.umbral_22      = form.umbral_22.data
-        cfg.umbral_23      = form.umbral_23.data
-        cfg.hora_inicio    = form.hora_inicio.data
-        cfg.hora_fin       = form.hora_fin.data
-        cfg.delay_whatsapp = form.delay_whatsapp.data
+        cfg.umbral_dia      = form.umbral_dia.data
+        cfg.umbral_22       = form.umbral_22.data
+        cfg.umbral_23       = form.umbral_23.data
+        cfg.hora_inicio     = form.hora_inicio.data
+        cfg.hora_fin        = form.hora_fin.data
+        cfg.delay_whatsapp  = form.delay_whatsapp.data
+        cfg.sync_dias_atras = form.sync_dias_atras.data
+        cfg.sync_time_type  = form.sync_time_type.data
         db.session.commit()
         flash("Configuración guardada.", "success")
         return redirect(url_for("admin.configuracion"))

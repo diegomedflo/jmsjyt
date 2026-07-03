@@ -71,6 +71,34 @@
             {% if form.delay_whatsapp.errors %}<span class="form-error">{{ form.delay_whatsapp.errors[0] }}</span>{% endif %}
           </div>
 
+          <hr style="border:none; border-top:1px solid var(--card-border);" />
+          <p style="font-weight:600; font-size:0.85rem; color:var(--color-text-primary); margin:0;">
+            <i class="bi bi-arrow-repeat"></i> Sincronización automática (botón "Sincronizar")
+          </p>
+
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Días atrás para buscar</label>
+              <input type="number" name="sync_dias_atras" class="form-control"
+                     value="{{ form.sync_dias_atras.data }}" required min="1" max="365" />
+              <span class="form-hint">Ej. 30 = buscar desde hace 30 días hasta hoy</span>
+              {% if form.sync_dias_atras.errors %}<span class="form-error">{{ form.sync_dias_atras.errors[0] }}</span>{% endif %}
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo de fecha (timeType)</label>
+              <select name="sync_time_type" class="form-control">
+                <option value="1" {% if form.sync_time_type.data == 1 %}selected{% endif %}>
+                  1 — Fecha de generación de datos (recomendado)
+                </option>
+                <option value="0" {% if form.sync_time_type.data == 0 %}selected{% endif %}>
+                  0 — Fecha de creación del pedido
+                </option>
+              </select>
+              <span class="form-hint">Equivale al filtro "Dimensión de datos" del portal JMS</span>
+              {% if form.sync_time_type.errors %}<span class="form-error">{{ form.sync_time_type.errors[0] }}</span>{% endif %}
+            </div>
+          </div>
+
           <div style="display:flex; justify-content:space-between; align-items:center; padding-top:0.75rem; border-top:1px solid var(--card-border);">
             <span style="font-size:0.78rem; color:var(--text-muted);">
               Última actualización: {{ cfg.updated_at.strftime('%d/%m/%Y %H:%M') if cfg.updated_at else '—' }}

@@ -72,19 +72,22 @@ class OutletMonitor:
         self,
         start_date: Optional[str] = None,
         end_date:   Optional[str] = None,
+        time_type:  int = 1,
     ) -> list[str]:
         """Retorna la lista de waybills (BILLCODE) en el rango de fechas.
 
         Args:
-            start_date: "YYYY-MM-DD" — por defecto: primer día del mes actual.
+            start_date: "YYYY-MM-DD" — por defecto: hace 30 días.
             end_date:   "YYYY-MM-DD" — por defecto: hoy.
+            time_type:  1 = fecha de generación de datos (default portal),
+                        0 = fecha de creación del pedido.
 
         Returns:
             Lista de strings con los números de guía (ej. "JPE000008162174").
         """
         if not start_date:
-            today = date.today()
-            start_date = today.replace(day=1).isoformat()
+            from datetime import timedelta
+            start_date = (date.today() - timedelta(days=30)).isoformat()
         if not end_date:
             end_date = date.today().isoformat()
 
@@ -92,14 +95,14 @@ class OutletMonitor:
         ed = f"{end_date} 23:59:59"
 
         logger.info(f"[outlet_monitor] Fetching waybills {start_date} → {end_date} "
-                    f"para usuario {self._cfg.jt_user!r}")
+                    f"timeType={time_type} usuario={self._cfg.jt_user!r}")
 
         token = self._auth.get_token()
-        return self._paginate(token, sd, ed)
+        return self._paginate(token, sd, ed, time_type)
 
     # ── Paginación ────────────────────────────────────────────────────────
 
-    def _paginate(self, token: str, sd: str, ed: str) -> list[str]:
+    def _paginate(self, token: str, sd: str, ed: str, time_type: int = 1) -> list[str]:
         try:
             from curl_cffi import requests as _curl
             session = _curl.Session(impersonate="chrome120")
@@ -116,7 +119,7 @@ class OutletMonitor:
         base_payload = {
             "startTime":           sd,
             "endTime":             ed,
-            "timeType":            1,
+            "timeType":            time_type,
             "recevierNetworkCode": self._cfg.jt_user,
             "countryId":           str(COUNTRY_ID),
         }

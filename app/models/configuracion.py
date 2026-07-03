@@ -24,6 +24,9 @@ class Configuracion(db.Model):
     hora_inicio    = db.Column(db.SmallInteger, nullable=False, default=8)
     hora_fin       = db.Column(db.SmallInteger, nullable=False, default=23)
     delay_whatsapp = db.Column(db.Float, nullable=False, default=8.0)
+    # ── Configuración de sincronización automática (OutletMonitor) ──────────────────────
+    sync_dias_atras = db.Column(db.SmallInteger, nullable=False, default=30)
+    sync_time_type  = db.Column(db.SmallInteger, nullable=False, default=1)
     updated_at     = db.Column(
         db.DateTime, nullable=False,
         default=datetime.utcnow, onupdate=datetime.utcnow,

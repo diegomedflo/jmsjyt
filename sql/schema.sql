@@ -203,14 +203,16 @@ CREATE INDEX IF NOT EXISTS idx_alerta_franq_enviado
 
 -- ── Configuracion (singleton id=1) ────────────────────────────
 CREATE TABLE IF NOT EXISTS configuracion (
-    id             SMALLINT    PRIMARY KEY DEFAULT 1,
-    umbral_dia     REAL        NOT NULL DEFAULT 3.0,
-    umbral_22      REAL        NOT NULL DEFAULT 10.0,
-    umbral_23      REAL        NOT NULL DEFAULT 9.0,
-    hora_inicio    SMALLINT    NOT NULL DEFAULT 8,
-    hora_fin       SMALLINT    NOT NULL DEFAULT 23,
-    delay_whatsapp REAL        NOT NULL DEFAULT 8.0,
-    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    id              SMALLINT    PRIMARY KEY DEFAULT 1,
+    umbral_dia      REAL        NOT NULL DEFAULT 3.0,
+    umbral_22       REAL        NOT NULL DEFAULT 10.0,
+    umbral_23       REAL        NOT NULL DEFAULT 9.0,
+    hora_inicio     SMALLINT    NOT NULL DEFAULT 8,
+    hora_fin        SMALLINT    NOT NULL DEFAULT 23,
+    delay_whatsapp  REAL        NOT NULL DEFAULT 8.0,
+    sync_dias_atras SMALLINT    NOT NULL DEFAULT 30,
+    sync_time_type  SMALLINT    NOT NULL DEFAULT 1,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_singleton CHECK (id = 1)
 );
 

@@ -4,6 +4,7 @@
 
 {% block content %}
 
+<!-- ── Header ───────────────────────────────────────────────────────────── -->
 <div class="page-header">
   <div class="page-header-left">
     <h1>
@@ -15,34 +16,18 @@
       {% endif %}
     </h1>
     <a href="{{ url_for('admin.franquiciados_lista') }}"
-       style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.8rem; color:var(--text-secondary); margin-top:0.3rem;">
+       style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.8rem; color:var(--color-text-secondary); margin-top:0.3rem;">
       <i class="bi bi-arrow-left"></i> Volver a Franquiciados
     </a>
   </div>
-  <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-    <a href="{{ url_for('admin.franquiciados_editar', fq_id=fq.id) }}" class="btn btn-outline btn-sm">
-      <i class="bi bi-pencil"></i> Editar
-    </a>
-    <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}" class="btn btn-outline btn-sm">
-      <i class="bi bi-input-cursor-text"></i> Importar (texto)
-    </a>
-    <a href="{{ url_for('admin.paquetes_importar_excel', fq_id=fq.id) }}" class="btn btn-primary btn-sm">
-      <i class="bi bi-file-earmark-excel"></i> Importar Excel
-    </a>
-    <form method="POST" action="{{ url_for('admin.paquetes_sincronizar', fq_id=fq.id) }}"
-          style="margin:0;" onsubmit="return confirm('¿Sincronizar waybills automáticamente desde el portal J&T? Puede tardar hasta 60 segundos.')">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-      <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--color-accent); color:var(--color-accent);">
-        <i class="bi bi-arrow-repeat"></i> Sincronizar
-      </button>
-    </form>
-  </div>
+  <a href="{{ url_for('admin.franquiciados_editar', fq_id=fq.id) }}" class="btn btn-outline btn-sm">
+    <i class="bi bi-pencil"></i> Editar
+  </a>
 </div>
 
-<!-- Info del franquiciado -->
-<div class="grid-5-7">
+<!-- ── Fila superior: Configuración + Últimas alertas ───────────────────── -->
+<div class="grid-5-7" style="margin-bottom:1.25rem;">
 
-  <!-- Datos de configuración -->
   <div class="card">
     <div class="card-header">
       <span class="card-title"><i class="bi bi-sliders"></i> Configuración</span>
@@ -53,10 +38,10 @@
         <span class="dl-value mono">{{ fq.jt_user }}</span>
 
         <span class="dl-label">Grupo WA Alertas</span>
-        <span class="dl-value mono">{{ fq.wa_grupo_id }}</span>
+        <span class="dl-value mono" style="overflow:hidden; text-overflow:ellipsis;">{{ fq.wa_grupo_id }}</span>
 
         <span class="dl-label">Grupo WA Monitor</span>
-        <span class="dl-value mono">{{ fq.wa_status_grupo_id or '—' }}</span>
+        <span class="dl-value mono" style="overflow:hidden; text-overflow:ellipsis;">{{ fq.wa_status_grupo_id or '—' }}</span>
 
         <span class="dl-label">API Key</span>
         <span class="dl-value mono">{{ fq.textmebot_api_key[:12] }}…</span>
@@ -72,12 +57,10 @@
     </div>
   </div>
 
-  <!-- Últimas alertas -->
   <div class="card">
     <div class="card-header">
       <span class="card-title"><i class="bi bi-bell"></i> Últimas alertas</span>
-      <a href="{{ url_for('admin.alertas_lista', franquiciado_id=fq.id) }}"
-         class="btn btn-ghost btn-sm">Ver todas</a>
+      <a href="{{ url_for('admin.alertas_lista', franquiciado_id=fq.id) }}" class="btn btn-ghost btn-sm">Ver todas</a>
     </div>
     {% if alertas %}
     <div class="table-wrapper">
@@ -93,18 +76,14 @@
         <tbody>
           {% for al in alertas %}
           <tr>
-            <td style="white-space:nowrap;">{{ al.enviado_at.strftime('%d/%m %H:%M') }}</td>
+            <td style="white-space:nowrap; font-size:0.8rem;">{{ al.enviado_at.strftime('%d/%m %H:%M') }}</td>
             <td>
-              <span class="badge {{ 'badge-yellow' if al.tipo == 'alerta' else 'badge-gray' }}">
-                {{ al.tipo }}
-              </span>
+              <span class="badge {{ 'badge-yellow' if al.tipo == 'alerta' else 'badge-gray' }}">{{ al.tipo }}</span>
             </td>
             <td style="text-align:center;">
-              <span class="badge {{ 'badge-green' if al.ok else 'badge-red' }}">
-                {{ 'OK' if al.ok else 'Error' }}
-              </span>
+              <span class="badge {{ 'badge-green' if al.ok else 'badge-red' }}">{{ 'OK' if al.ok else 'Error' }}</span>
             </td>
-            <td style="max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-muted);">
+            <td style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--color-text-secondary); font-size:0.78rem;">
               {{ al.respuesta_api or '—' }}
             </td>
           </tr>
@@ -113,74 +92,67 @@
       </table>
     </div>
     {% else %}
-    <div class="card-body" style="color:var(--text-muted); font-size:0.85rem;">Sin alertas registradas aún.</div>
+    <div class="card-body" style="color:var(--color-text-secondary); font-size:0.85rem;">Sin alertas registradas aún.</div>
     {% endif %}
   </div>
 
 </div>
 
-<!-- Acciones de importación / sincronización -->
+<!-- ── Acciones de importación / sincronización ──────────────────────────── -->
 <div class="card" style="margin-bottom:1.25rem;">
   <div class="card-header">
     <span class="card-title"><i class="bi bi-cloud-download"></i> Obtener paquetes desde JMS</span>
   </div>
-  <div class="card-body">
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem;">
+  <div class="card-body" style="padding:1rem;">
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem;">
 
       <!-- Sincronizar automático -->
-      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem;">
-        <div style="font-weight:600; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;">
-          <i class="bi bi-arrow-repeat" style="color:var(--color-accent); font-size:1.1rem;"></i>
-          Sincronizar desde JMS
+      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1rem; display:flex; flex-direction:column; gap:0.65rem;">
+        <div style="font-weight:600; font-size:0.88rem; display:flex; align-items:center; gap:0.4rem; color:var(--color-accent);">
+          <i class="bi bi-arrow-repeat"></i> Sincronizar desde JMS
         </div>
-        <p style="font-size:0.8rem; color:var(--color-text-secondary); margin:0; line-height:1.5;">
-          Extrae automáticamente todos los paquetes asignados a esta cuenta
-          directamente desde la API de J&amp;T. Resuelve el captcha con OpenCV
-          y pagina todos los resultados.
+        <p style="font-size:0.78rem; color:var(--color-text-secondary); margin:0; line-height:1.55; flex:1;">
+          Extrae automáticamente los paquetes de esta cuenta
+          vía API interna J&amp;T con captcha OpenCV.
+          Tarda ~30–60 s (captcha + paginación).
         </p>
         <form method="POST" action="{{ url_for('admin.paquetes_sincronizar', fq_id=fq.id) }}"
-              style="margin:0; margin-top:auto;"
-              onsubmit="
-                this.querySelector('button').disabled = true;
-                this.querySelector('button').innerHTML = '<i class=\'bi bi-hourglass-split\'></i> Sincronizando…';
-                return true;
-              ">
+              style="margin:0;"
+              onsubmit="var b=this.querySelector('button'); b.disabled=true; b.innerHTML='<i class=\'bi bi-hourglass-split\'></i> Sincronizando…';">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <button type="submit" class="btn btn-primary" style="width:100%;">
-            <i class="bi bi-arrow-repeat"></i> Ejecutar scraper ahora
+          <button type="submit" class="btn btn-primary" style="width:100%; font-size:0.83rem;">
+            <i class="bi bi-arrow-repeat"></i> Ejecutar scraper
           </button>
         </form>
       </div>
 
       <!-- Importar Excel -->
-      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem;">
-        <div style="font-weight:600; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;">
-          <i class="bi bi-file-earmark-excel" style="color:#1a7f3c; font-size:1.1rem;"></i>
-          Importar Excel de JMS
+      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1rem; display:flex; flex-direction:column; gap:0.65rem;">
+        <div style="font-weight:600; font-size:0.88rem; display:flex; align-items:center; gap:0.4rem; color:#1a7f3c;">
+          <i class="bi bi-file-earmark-excel"></i> Importar Excel
         </div>
-        <p style="font-size:0.8rem; color:var(--color-text-secondary); margin:0; line-height:1.5;">
-          Sube un archivo <strong>.xlsx</strong> exportado manualmente desde el portal JMS
-          (Indicadores operativos → Monitoreo de entrada al puerto → Exportar).
-          Se guarda una copia en Google Drive.
+        <p style="font-size:0.78rem; color:var(--color-text-secondary); margin:0; line-height:1.55; flex:1;">
+          Sube el <strong>.xlsx</strong> exportado desde JMS
+          (Indicadores → Monitoreo entrada al puerto → Exportar).
+          Backup automático en Google Drive.
         </p>
         <a href="{{ url_for('admin.paquetes_importar_excel', fq_id=fq.id) }}"
-           class="btn btn-outline" style="width:100%; text-align:center; margin-top:auto;">
+           class="btn btn-outline" style="width:100%; text-align:center; font-size:0.83rem;">
           <i class="bi bi-upload"></i> Subir Excel
         </a>
       </div>
 
-      <!-- Importar texto manual -->
-      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem;">
-        <div style="font-weight:600; font-size:0.9rem; display:flex; align-items:center; gap:0.4rem;">
-          <i class="bi bi-input-cursor-text" style="color:var(--color-text-secondary); font-size:1.1rem;"></i>
-          Importar códigos (texto)
+      <!-- Importar texto -->
+      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1rem; display:flex; flex-direction:column; gap:0.65rem;">
+        <div style="font-weight:600; font-size:0.88rem; display:flex; align-items:center; gap:0.4rem; color:var(--color-text-secondary);">
+          <i class="bi bi-input-cursor-text"></i> Importar texto
         </div>
-        <p style="font-size:0.8rem; color:var(--color-text-secondary); margin:0; line-height:1.5;">
-          Pega una lista de números de guía manualmente, uno por línea.
-          Útil para agregar paquetes puntuales sin pasar por el portal.
+        <p style="font-size:0.78rem; color:var(--color-text-secondary); margin:0; line-height:1.55; flex:1;">
+          Pega códigos de guía manualmente, uno por línea.
+          Útil para agregar paquetes puntuales sin el portal.
         </p>
         <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}"
-           class="btn btn-outline" style="width:100%; text-align:center; margin-top:auto;">
+           class="btn btn-outline" style="width:100%; text-align:center; font-size:0.83rem;">
           <i class="bi bi-list-ul"></i> Ingresar códigos
         </a>
       </div>
@@ -189,46 +161,55 @@
   </div>
 </div>
 
-<!-- Paquetes -->
+<!-- ── Tabla de paquetes con filtro y paginación ─────────────────────────── -->
 <div class="card">
-  <div class="card-header">
-    <span class="card-title"><i class="bi bi-box-seam"></i> Paquetes (últimos 100)</span>
-    <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}" class="btn btn-primary btn-sm">
-      <i class="bi bi-upload"></i> Importar
-    </a>
+  <div class="card-header" style="flex-wrap:wrap; gap:0.5rem;">
+    <span class="card-title">
+      <i class="bi bi-box-seam"></i> Paquetes
+      <span style="font-size:0.78rem; color:var(--color-text-secondary); font-weight:400; margin-left:0.4rem;">
+        {{ pagination.total }} en total
+      </span>
+    </span>
+    <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+      {% for est, label in [('','Todos'),('pendiente','Pendientes'),('entregado','Entregados'),('devuelto','Devueltos'),('cancelado','Cancelados')] %}
+      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, estado=est) }}"
+         class="btn btn-sm {{ 'btn-primary' if estado_filtro == est else 'btn-ghost' }}"
+         style="font-size:0.75rem; padding:0.2rem 0.65rem;">
+        {{ label }}
+      </a>
+      {% endfor %}
+    </div>
   </div>
+
   {% if paquetes %}
   <div class="table-wrapper">
     <table>
       <thead>
         <tr>
           <th>Waybill</th>
-          <th style="text-align:center;">Estado</th>
-          <th style="text-align:center;">Intentos</th>
-          <th>Recojo</th>
-          <th>Último intento</th>
-          <th style="text-align:right;">Acción</th>
+          <th style="text-align:center; width:110px;">Estado</th>
+          <th style="text-align:center; width:80px;">Intentos</th>
+          <th style="width:110px;">Recojo</th>
+          <th style="width:115px;">Último intento</th>
+          <th style="text-align:right; width:65px;">Acción</th>
         </tr>
       </thead>
       <tbody>
+        {% set badgecls = {'pendiente':'badge-yellow','entregado':'badge-green','devuelto':'badge-red','cancelado':'badge-gray'} %}
         {% for pkg in paquetes %}
         <tr>
-          <td style="font-family:monospace;">{{ pkg.waybill_no }}</td>
+          <td>
+            <span style="font-family:monospace; font-size:0.83rem; letter-spacing:0.02em; color:var(--color-text-primary);">{{ pkg.waybill_no }}</span>
+          </td>
           <td style="text-align:center;">
-            {% set badgecls = {
-              'pendiente': 'badge-yellow',
-              'entregado': 'badge-green',
-              'devuelto':  'badge-red',
-              'cancelado': 'badge-gray'
-            } %}
             <span class="badge {{ badgecls[pkg.estado] }}">{{ pkg.estado }}</span>
           </td>
-          <td style="text-align:center; color:var(--text-secondary);">{{ pkg.n_intentos }}</td>
-          <td style="color:var(--text-muted); white-space:nowrap;">
-            {{ pkg.fecha_recojo.strftime('%d/%m %H:%M') if pkg.fecha_recojo else '—' }}
+          <td style="text-align:center; color:var(--color-text-secondary); font-size:0.85rem;">{{ pkg.n_intentos }}</td>
+          <td style="color:var(--color-text-secondary); white-space:nowrap; font-size:0.8rem;">
+            {{ pkg.fecha_recojo.strftime('%d/%m/%y %H:%M') if pkg.fecha_recojo else '—' }}
           </td>
-          <td style="color:var(--text-muted); white-space:nowrap;">
-            {{ pkg.ultimo_intento_at.strftime('%d/%m %H:%M') if pkg.ultimo_intento_at else '—' }}
+          <td style="color:var(--color-text-secondary); white-space:nowrap; font-size:0.8rem;">
+            {{ pkg.ultimo_intento_at.strftime('%d/%m/%y %H:%M') if pkg.ultimo_intento_at else '—' }}
           </td>
           <td style="text-align:right;">
             {% if pkg.estado == 'pendiente' %}
@@ -242,7 +223,7 @@
               </button>
             </form>
             {% else %}
-            <span style="color:var(--text-muted);">—</span>
+            <span style="color:var(--color-text-secondary);">—</span>
             {% endif %}
           </td>
         </tr>
@@ -250,10 +231,40 @@
       </tbody>
     </table>
   </div>
+
+  <!-- Paginación -->
+  {% if pagination.pages > 1 %}
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 1rem; border-top:1px solid var(--card-border);">
+    <span style="font-size:0.8rem; color:var(--color-text-secondary);">
+      {{ pagination.first }}–{{ pagination.last }} de {{ pagination.total }}
+    </span>
+    <div style="display:flex; gap:0.25rem; align-items:center;">
+      {% if pagination.has_prev %}
+      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=pagination.prev_num, estado=estado_filtro) }}"
+         class="btn btn-ghost btn-sm" style="padding:0.2rem 0.55rem;"><i class="bi bi-chevron-left"></i></a>
+      {% endif %}
+      {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+          <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=p, estado=estado_filtro) }}"
+             class="btn btn-sm {{ 'btn-primary' if p == pagination.page else 'btn-ghost' }}"
+             style="padding:0.2rem 0.55rem; min-width:30px; text-align:center;">{{ p }}</a>
+        {% else %}
+          <span style="color:var(--color-text-secondary); padding:0 0.15rem;">…</span>
+        {% endif %}
+      {% endfor %}
+      {% if pagination.has_next %}
+      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=pagination.next_num, estado=estado_filtro) }}"
+         class="btn btn-ghost btn-sm" style="padding:0.2rem 0.55rem;"><i class="bi bi-chevron-right"></i></a>
+      {% endif %}
+    </div>
+    <span style="font-size:0.8rem; color:var(--color-text-secondary);">Pág. {{ pagination.page }}/{{ pagination.pages }}</span>
+  </div>
+  {% endif %}
+
   {% else %}
-  <div class="empty-state" style="padding:2rem;">
-    <i class="bi bi-box-seam"></i>
-    <p>Sin paquetes registrados.</p>
+  <div style="padding:2.5rem; text-align:center; color:var(--color-text-secondary);">
+    <i class="bi bi-box-seam" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:0.5rem;"></i>
+    Sin paquetes{% if estado_filtro %} con estado <strong>{{ estado_filtro }}</strong>{% endif %}.
   </div>
   {% endif %}
 </div>

@@ -76,16 +76,24 @@ def franquiciados_nuevo():
 @admin_bp.route("/franquiciados/<int:fq_id>")
 @login_required
 def franquiciados_detalle(fq_id: int):
-    fq         = db.get_or_404(Franquiciado, fq_id)
-    paquetes   = Paquete.query.filter_by(franquiciado_id=fq_id).order_by(
-        Paquete.estado, Paquete.created_at.desc()
-    ).limit(100).all()
+    fq      = db.get_or_404(Franquiciado, fq_id)
+    page    = request.args.get("page", 1, type=int)
+    estado  = request.args.get("estado", "")
+    q_pkg   = Paquete.query.filter_by(franquiciado_id=fq_id)
+    if estado:
+        q_pkg = q_pkg.filter_by(estado=estado)
+    q_pkg      = q_pkg.order_by(Paquete.created_at.desc())
+    pagination = q_pkg.paginate(page=page, per_page=50, error_out=False)
     alertas    = AlertaLog.query.filter_by(franquiciado_id=fq_id).order_by(
         AlertaLog.enviado_at.desc()
     ).limit(20).all()
     return render_template(
         "admin/franquiciados/detalle.html",
-        fq=fq, paquetes=paquetes, alertas=alertas,
+        fq=fq,
+        paquetes=pagination.items,
+        pagination=pagination,
+        estado_filtro=estado,
+        alertas=alertas,
     )
 
 

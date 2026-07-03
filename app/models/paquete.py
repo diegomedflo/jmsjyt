@@ -30,7 +30,7 @@ class Paquete(db.Model):
     )
     waybill_no        = db.Column(db.String(120), nullable=False, index=True)
     estado            = db.Column(
-        db.Enum("pendiente", "entregado", "devuelto", "cancelado"),
+        db.Enum("pendiente", "entregado", "devuelto", "cancelado", native_enum=False),
         nullable=False, default="pendiente", index=True,
     )
     fecha_recojo      = db.Column(db.DateTime, nullable=True)

@@ -1,8 +1,11 @@
 """Rutas del panel de administración."""
 from __future__ import annotations
 
+import json
+
 from flask import (
-    flash, redirect, render_template, request, url_for, current_app,
+    Response, flash, redirect, render_template, request, stream_with_context,
+    url_for, current_app,
 )
 from flask_login import login_required
 
@@ -347,6 +350,63 @@ def paquetes_actualizar_tracking(fq_id: int):
         flash(f"Error al actualizar tracking: {exc}", "danger")
 
     return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+
+# ── Streaming SSE de progreso de tracking (lotes) ───────────────────────────
+
+# Paquetes por lote SSE. Cada lote dura ~30–40 s, muy por debajo del
+# timeout de gunicorn (120 s). El cliente JS reconecta hasta que el
+# servidor responde {type:'all_done'}.
+_TRACKING_BATCH = 20
+
+
+@admin_bp.route("/franquiciados/<int:fq_id>/paquetes/tracking-stream")
+@login_required
+def paquetes_tracking_stream(fq_id: int):
+    """SSE con lotes: procesa _TRACKING_BATCH paquetes por conexión.
+
+    Query params:
+        after_id (int, default 0): cursor — procesa paquetes con id > after_id
+    """
+    from app.services.tracking_service import refrescar_lote_stream
+
+    fq       = db.get_or_404(Franquiciado, fq_id)
+    after_id = request.args.get("after_id", 0, type=int)
+    debug    = current_app.debug
+
+    total_pending = (
+        Paquete.query
+        .filter_by(franquiciado_id=fq_id, estado=Paquete.ESTADO_PENDIENTE)
+        .count()
+    )
+
+    batch = (
+        Paquete.query
+        .filter(
+            Paquete.franquiciado_id == fq_id,
+            Paquete.estado          == Paquete.ESTADO_PENDIENTE,
+            Paquete.id              >  after_id,
+        )
+        .order_by(Paquete.id)
+        .limit(_TRACKING_BATCH)
+        .all()
+    )
+
+    def _generate():
+        if not batch:
+            yield f"data: {json.dumps({'type': 'all_done'})}\n\n"
+            return
+
+        yield f"data: {json.dumps({'type': 'start', 'total': total_pending, 'batch': len(batch)})}\n\n"
+
+        for event in refrescar_lote_stream(fq, batch, flask_debug=debug):
+            yield f"data: {json.dumps(event)}\n\n"
+
+    return Response(
+        stream_with_context(_generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── Cron Logs ────────────────────────────────────────────────────────────────

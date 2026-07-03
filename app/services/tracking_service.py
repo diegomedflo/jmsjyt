@@ -155,8 +155,13 @@ def _guardar_historial(paquete: Paquete, eventos: list) -> None:
 def refrescar_franquiciado(
     franquiciado: Franquiciado,
     flask_debug: bool = False,
+    progress_callback=None,
 ) -> dict:
     """Refresca el tracking de todos los paquetes pendientes del franquiciado.
+
+    Args:
+        progress_callback: callable(done, total, waybill, status) llamado tras
+            procesar cada paquete, donde status es 'ok' o 'error'.
 
     Returns:
         dict con {consultados, errores, entregados, devueltos}
@@ -201,8 +206,11 @@ def refrescar_franquiciado(
         return {"consultados": 0, "errores": len(pendientes), "entregados": 0, "devueltos": 0}
 
     stats = {"consultados": 0, "errores": 0, "entregados": 0, "devueltos": 0}
+    _total = len(pendientes)
+    _done  = 0
 
     for pkg in pendientes:
+        _pkg_error = False
         try:
             result = tracker.track(pkg.waybill_no)
             stats["consultados"] += 1
@@ -252,8 +260,128 @@ def refrescar_franquiciado(
         except Exception as exc:
             db.session.rollback()
             stats["errores"] += 1
+            _pkg_error = True
             logger.error(
                 f"[{franquiciado.nombre}] Error al procesar {pkg.waybill_no}: {exc}"
             )
 
+        finally:
+            _done += 1
+            if progress_callback:
+                progress_callback(_done, _total, pkg.waybill_no,
+                                  "error" if _pkg_error else "ok")
+
     return stats
+
+
+def refrescar_lote_stream(
+    franquiciado: Franquiciado,
+    paquetes: list,
+    flask_debug: bool = False,
+):
+    """Generator: procesa una lista concreta de paquetes y emite eventos de progreso.
+
+    Yields:
+        - {'type':'progress', 'done', 'total', 'waybill', 'status'}
+        - {'type':'batch_done', 'stats', 'next_after_id'}
+    """
+    from jt_scraper import JTTracker, JTInstanceConfig
+
+    def _to_peru(dt: Optional[datetime]) -> Optional[datetime]:
+        if dt is None:
+            return None
+        return dt if flask_debug else dt - PERU_UTC_OFFSET
+
+    def token_getter() -> Optional[str]:
+        db.session.refresh(franquiciado)
+        return franquiciado.get_token_cache()
+
+    def token_setter(value: Optional[str]) -> None:
+        franquiciado.set_token_cache(value)
+        db.session.commit()
+
+    cfg = JTInstanceConfig(
+        jt_user      = franquiciado.jt_user,
+        jt_pass      = franquiciado.jt_pass,
+        token_getter = token_getter,
+        token_setter = token_setter,
+    )
+
+    total   = len(paquetes)
+    last_id = paquetes[-1].id if paquetes else 0
+    stats   = {"consultados": 0, "errores": 0, "entregados": 0, "devueltos": 0}
+
+    try:
+        tracker = JTTracker(cfg)
+    except Exception as exc:
+        logger.error(f"[{franquiciado.nombre}] No se pudo inicializar JTTracker (lote): {exc}")
+        stats["errores"] = total
+        for idx, pkg in enumerate(paquetes, 1):
+            yield {"type": "progress", "done": idx, "total": total,
+                   "waybill": pkg.waybill_no, "status": "error"}
+        yield {"type": "batch_done", "stats": stats, "next_after_id": last_id}
+        return
+
+    for idx, pkg in enumerate(paquetes, 1):
+        _error     = False
+        _entregado = False
+        _devuelto  = False
+        try:
+            result = tracker.track(pkg.waybill_no)
+            stats["consultados"] += 1
+
+            eventos = result.events or []
+            _guardar_historial(pkg, eventos)
+
+            for ev in reversed(eventos):
+                if _es_recojo_almacen(ev.description or "", ev.scan_type or ""):
+                    pkg.fecha_recojo = _to_peru(_parse_dt(ev.scan_time))
+                    break
+
+            intentos = [
+                ev for ev in eventos
+                if (ev.scan_type or "").strip() == TIPO_EXCEPCION
+            ]
+            pkg.n_intentos = len(intentos)
+            if intentos:
+                pkg.ultimo_intento_at = _to_peru(_parse_dt(intentos[0].scan_time))
+
+            for ev in eventos:
+                if pkg.fecha_recojo and _parse_dt(ev.scan_time):
+                    ev_dt = _to_peru(_parse_dt(ev.scan_time))
+                    if ev_dt and ev_dt > pkg.fecha_recojo:
+                        if _es_gestion(ev.scan_type or "", ev.description or ""):
+                            pkg.ultima_gestion_at = ev_dt
+                            break
+
+            if eventos and (eventos[0].scan_type or "").strip() == TIPO_ENTREGADO:
+                pkg.estado = Paquete.ESTADO_ENTREGADO
+                stats["entregados"] += 1
+                _entregado = True
+            elif any(_es_devolucion_jyt(ev.scan_type or "") for ev in eventos):
+                pkg.estado = Paquete.ESTADO_DEVUELTO
+                stats["devueltos"] += 1
+                _devuelto = True
+
+            db.session.commit()
+            logger.debug(f"[{franquiciado.nombre}] {pkg.waybill_no}: OK ({pkg.estado})")
+
+        except Exception as exc:
+            db.session.rollback()
+            stats["errores"] += 1
+            _error = True
+            logger.error(
+                f"[{franquiciado.nombre}] Error al procesar {pkg.waybill_no}: {exc}"
+            )
+
+        yield {
+            "type":    "progress",
+            "done":    idx,
+            "total":   total,
+            "waybill": pkg.waybill_no,
+            "status":  "error" if _error else (
+                        "entregado" if _entregado else (
+                        "devuelto"  if _devuelto  else "ok")),
+        }
+
+    yield {"type": "batch_done", "stats": stats, "next_after_id": last_id}

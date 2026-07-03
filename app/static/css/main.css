@@ -194,6 +194,11 @@ a { color: inherit; text-decoration: none; }
   gap: 1.25rem;
 }
 
+/* Evitar que los hijos directos sean aplastados por flex-shrink */
+.main-content > * {
+  flex-shrink: 0;
+}
+
 /* ── Flash messages ──────────────────────────────────────────── */
 .flash-container { display: flex; flex-direction: column; gap: 0.5rem; }
 .flash {

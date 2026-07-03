@@ -4,12 +4,9 @@ En cada corrida del cron:
   1. Construye un ``JTTracker`` con las credenciales del franquiciado.
   2. Para cada paquete en estado ``pendiente``, consulta el Registro POD.
   3. Guarda el historial en ``tracking_historial`` (delete + insert).
-  4. Actualiza ``paquete.fecha_recojo``, ``n_intentos``, ``ultimo_intento_at``.
+  4. Actualiza ``paquete.fecha_recojo``, ``n_intentos``, ``ultimo_intento_at``, ``ultima_gestion_at``.
   5. Marca como ``entregado`` los paquetes con el evento "Paquete firmado".
-  6. Marca como ``devuelto`` los paquetes con 3 intentos fallidos.
-
-Toda la lógica de interpretación de los eventos sigue las mismas reglas
-que el proyecto vasmat (Regla General de J&T).
+  6. Marca como ``devuelto`` los paquetes con "Registro de devolución" o "Escaneo de devolución".
 """
 from __future__ import annotations
 
@@ -28,7 +25,14 @@ TIPO_ENTREGADO = "Paquete firmado"
 # Tipo de escaneo que indica intento fallido.
 TIPO_EXCEPCION = "Escaneo de excepción"
 # Máximo de intentos permitidos por la Regla General.
-MAX_INTENTOS = 3
+# Tipos de escaneo exactos que J&T usa cuando inicia la devolución de un paquete.
+# Detectados en el Registro POD (eventos #25 y #26 en el historial real):
+#   - "Registro de devolución" : J&T registra la orden de devolver el paquete
+#   - "Escaneo de devolución"  : J&T escanea el paquete para iniciar el retorno
+_TIPOS_DEVOLUCION = {
+    "registro de devolución",
+    "escaneo de devolución",
+}
 
 # Corrección UTC → Perú en producción (el servidor corre en UTC).
 PERU_UTC_OFFSET = timedelta(hours=5)
@@ -61,6 +65,16 @@ def _parse_dt(s: Optional[str]) -> Optional[datetime]:
         except ValueError:
             continue
     return None
+
+
+def _es_devolucion_jyt(scan_type: str) -> bool:
+    """Detecta si J&T marcó explícitamente el paquete como devuelto.
+
+    Busca coincidencia exacta (case-insensitive) con los tipos de escaneo
+    'Registro de devolución' o 'Escaneo de devolución'.
+    """
+    st = (scan_type or "").strip().lower()
+    return st in _TIPOS_DEVOLUCION
 
 
 def _es_recojo_almacen(descripcion: str, tipo_escaneo: str = "") -> bool:
@@ -221,12 +235,13 @@ def refrescar_franquiciado(
                             pkg.ultima_gestion_at = ev_dt
                             break
 
-            # Entregado
+            # Entregado: J&T registró firma del destinatario
             if eventos and (eventos[0].scan_type or "").strip() == TIPO_ENTREGADO:
                 pkg.estado = Paquete.ESTADO_ENTREGADO
                 stats["entregados"] += 1
-            # Devuelto (≥ 3 intentos)
-            elif pkg.n_intentos >= MAX_INTENTOS:
+
+            # Devuelto: J&T registró "Registro de devolución" o "Escaneo de devolución"
+            elif any(_es_devolucion_jyt(ev.scan_type or "") for ev in eventos):
                 pkg.estado = Paquete.ESTADO_DEVUELTO
                 stats["devueltos"] += 1
 

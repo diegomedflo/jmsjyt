@@ -29,6 +29,9 @@ class Franquiciado(db.Model):
     textmebot_api_key  = db.Column(db.String(120), nullable=False)
     activo             = db.Column(db.Boolean, nullable=False, default=True)
     notas              = db.Column(db.Text, nullable=True)
+    # ── Reglas de entrega personalizadas ──────────────────────────────────
+    horas_total_entrega   = db.Column(db.Integer, nullable=False, default=120)  # 5 días = 120h
+    horas_primera_gestion = db.Column(db.Integer, nullable=False, default=48)   # 48h para primera gestión
     created_at         = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at         = db.Column(
         db.DateTime, nullable=False,

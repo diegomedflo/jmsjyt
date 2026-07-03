@@ -33,10 +33,17 @@ MAX_INTENTOS = 3
 # Corrección UTC → Perú en producción (el servidor corre en UTC).
 PERU_UTC_OFFSET = timedelta(hours=5)
 
-# Detecta "Parada anterior【】" vacía (recojo del almacén de J&T).
-_RE_PARADA_VACIA = re.compile(r"Parada anterior\s*【\s*】")
-# Detecta nombre del motorizado.
+# --- Detección de fecha de recojo ------------------------------------------
+# Patrón CORRECTO: "Llegada del paquete [….pdv]" con parada anterior no vacía
+# Evento: "Descarga TR1/2" cuando el paquete sale del CEDIS y llega al PDV.
+_RE_PDV_DEST        = re.compile(r"Llegada del paquete\s*【[^】]*\.pdv[^】]*】")
+_RE_PARADA_NONEMPTY = re.compile(r"Parada anterior\s*【([^】\s][^】]*)】")
+# Patrón antiguo (fallback): parada anterior vacía
+_RE_PARADA_VACIA    = re.compile(r"Parada anterior\s*【\s*】")
+
+# --- Detección de gestiones (cualquier acción del motorizado o asignación) ---
 _RE_MENSAJERO    = re.compile(r"su mensajero\s*【(.+?)】")
+_RE_MENSAJERO_OK = re.compile(r"su mensajero\s*【([^】\s][^】]*)】")
 
 _SCAN_TIME_FORMATS = [
     "%Y-%m-%d %H:%M:%S",
@@ -56,11 +63,41 @@ def _parse_dt(s: Optional[str]) -> Optional[datetime]:
     return None
 
 
-def _es_recojo_almacen(descripcion: str) -> bool:
+def _es_recojo_almacen(descripcion: str, tipo_escaneo: str = "") -> bool:
+    """Detecta cuando el paquete sale del CEDIS y llega al PDV del franquiciado.
+
+    El evento correcto es una 'Descarga TR1/2' donde:
+      - La descripción contiene 'Llegada del paquete [….pdv]' (destino = PDV)
+      - La 'Parada anterior' es no vacía (viene del CEDIS)
+
+    Fallback antiguo: 'Llegada del paquete' con 'Parada anterior [】' (vacía).
+    """
     desc = (descripcion or "").strip()
-    return desc.startswith("Llegada del paquete") and bool(
-        _RE_PARADA_VACIA.search(desc)
-    )
+    # Patrón nuevo (correcto):
+    if _RE_PDV_DEST.search(desc) and _RE_PARADA_NONEMPTY.search(desc):
+        return True
+    # Patrón antiguo (fallback):
+    if desc.startswith("Llegada del paquete") and _RE_PARADA_VACIA.search(desc):
+        return True
+    return False
+
+
+def _es_gestion(scan_type: str, descripcion: str) -> bool:
+    """Detecta cualquier gestión del motorizado o asignación tras el recojo:
+      - Escaneo de entrega (entrega en curso)
+      - Escaneo de excepción (intento fallido)
+      - Asignación a motorizado (descripción menciona mensajero)
+    """
+    st   = (scan_type   or "").strip()
+    desc = (descripcion or "").strip()
+    if st in ("Escaneo de entrega", TIPO_EXCEPCION):
+        return True
+    if "excep" in st.lower() or "entrega" in st.lower():
+        return True
+    # Asignación a motorizado con nombre no vacío
+    if _RE_MENSAJERO_OK.search(desc):
+        return True
+    return False
 
 
 def interpretar_evento(scan_type: Optional[str], descripcion: Optional[str]) -> str:
@@ -158,13 +195,13 @@ def refrescar_franquiciado(
             eventos = result.events or []
             _guardar_historial(pkg, eventos)
 
-            # Determinar fecha de recojo del almacén
+            # Determinar fecha de recojo del almacén (primera vez que llega al PDV)
             for ev in reversed(eventos):
-                if _es_recojo_almacen(ev.description or ""):
+                if _es_recojo_almacen(ev.description or "", ev.scan_type or ""):
                     pkg.fecha_recojo = _to_peru(_parse_dt(ev.scan_time))
                     break
 
-            # Contar intentos fallidos y registrar el más reciente
+            # Contar intentos fallidos (Escaneo de excepción) y última gestión
             intentos = [
                 ev for ev in eventos
                 if (ev.scan_type or "").strip() == TIPO_EXCEPCION
@@ -173,6 +210,16 @@ def refrescar_franquiciado(
             if intentos:
                 ultimo = _parse_dt(intentos[0].scan_time)  # más reciente primero
                 pkg.ultimo_intento_at = _to_peru(ultimo)
+
+            # Última gestión: cualquier acción del motorizado (asignación, entrega, excepción)
+            for ev in eventos:  # newest-first
+                if pkg.fecha_recojo and _parse_dt(ev.scan_time):
+                    ev_dt = _to_peru(_parse_dt(ev.scan_time))
+                    # Solo contar gestiones DESPUÉS del recojo
+                    if ev_dt and ev_dt > pkg.fecha_recojo:
+                        if _es_gestion(ev.scan_type or "", ev.description or ""):
+                            pkg.ultima_gestion_at = ev_dt
+                            break
 
             # Entregado
             if eventos and (eventos[0].scan_type or "").strip() == TIPO_ENTREGADO:

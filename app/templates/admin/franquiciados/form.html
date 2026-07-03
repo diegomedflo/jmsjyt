@@ -107,6 +107,27 @@
             </div>
           </div>
 
+          <!-- Reglas de entrega personalizadas -->
+          <div>
+            <div class="form-section"><span class="form-section-label">Reglas de entrega J&T</span></div>
+            <div class="grid-2" style="margin-top:0.85rem;">
+              <div class="form-group">
+                <label class="form-label">Plazo total de entrega (horas) *</label>
+                <input type="number" name="horas_total_entrega" class="form-control"
+                       value="{{ form.horas_total_entrega.data or 120 }}" required min="24" max="720" />
+                <span class="form-hint">J&T da 5 días = 120 h. Se mide desde la fecha de recojo en el PDV.</span>
+                {% if form.horas_total_entrega.errors %}<span class="form-error">{{ form.horas_total_entrega.errors[0] }}</span>{% endif %}
+              </div>
+              <div class="form-group">
+                <label class="form-label">Primera gestión máx (horas) *</label>
+                <input type="number" name="horas_primera_gestion" class="form-control"
+                       value="{{ form.horas_primera_gestion.data or 48 }}" required min="4" max="240" />
+                <span class="form-hint">Tiempo máximo desde el recojo para que haya al menos 1 gestión (asignación o intento).</span>
+                {% if form.horas_primera_gestion.errors %}<span class="form-error">{{ form.horas_primera_gestion.errors[0] }}</span>{% endif %}
+              </div>
+            </div>
+          </div>
+
           <!-- Botones -->
           <div style="display:flex; justify-content:flex-end; gap:0.75rem; padding-top:0.75rem; border-top:1px solid var(--card-border);">
             <a href="{{ url_for('admin.franquiciados_lista') }}" class="btn btn-outline">Cancelar</a>

@@ -18,15 +18,17 @@ class Configuracion(db.Model):
     __tablename__ = "configuracion"
 
     id             = db.Column(db.SmallInteger, primary_key=True, default=1)
-    umbral_dia     = db.Column(db.Float, nullable=False, default=3.0)
-    umbral_22      = db.Column(db.Float, nullable=False, default=10.0)
-    umbral_23      = db.Column(db.Float, nullable=False, default=9.0)
-    hora_inicio    = db.Column(db.SmallInteger, nullable=False, default=8)
-    hora_fin       = db.Column(db.SmallInteger, nullable=False, default=23)
-    delay_whatsapp = db.Column(db.Float, nullable=False, default=8.0)
+    umbral_dia            = db.Column(db.Float, nullable=False, default=3.0)
+    umbral_22             = db.Column(db.Float, nullable=False, default=10.0)
+    umbral_23             = db.Column(db.Float, nullable=False, default=9.0)
+    hora_inicio           = db.Column(db.SmallInteger, nullable=False, default=8)
+    hora_fin              = db.Column(db.SmallInteger, nullable=False, default=23)
+    delay_whatsapp        = db.Column(db.Float, nullable=False, default=8.0)
     # ── Configuración de sincronización automática (OutletMonitor) ──────────────────────
-    sync_dias_atras = db.Column(db.SmallInteger, nullable=False, default=30)
-    sync_time_type  = db.Column(db.SmallInteger, nullable=False, default=1)
+    sync_dias_atras       = db.Column(db.SmallInteger, nullable=False, default=30)
+    sync_time_type        = db.Column(db.SmallInteger, nullable=False, default=1)
+    # ── Regla General J&T (global) ───────────────────────────────────────────────
+    horas_entre_gestiones = db.Column(db.Integer, nullable=False, default=48)  # max entre gestiones
     updated_at     = db.Column(
         db.DateTime, nullable=False,
         default=datetime.utcnow, onupdate=datetime.utcnow,

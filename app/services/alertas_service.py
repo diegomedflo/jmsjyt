@@ -3,12 +3,14 @@
 En cada corrida del cron (horaria, dentro del horario laboral 8am–11pm Perú):
 
   1. Refresca el tracking de todos los paquetes pendientes del franquiciado.
-  2. Aplica la Regla General de J&T:
-       - Primera gestión: 48h desde el recojo del almacén (fecha_recojo).
-       - Entre gestiones: 24h desde el último intento fallido (ultimo_intento_at).
-     Máximo 3 intentos (n_intentos >= 3 → devuelto).
-  3. Si un paquete está a ``umbral_horas`` o menos de vencer su plazo vigente,
-     se incluye en la alerta de WhatsApp del franquiciado.
+  2. Aplica las reglas configurables de J&T:
+       - Primera gestión: X horas desde el recojo (franquiciado.horas_primera_gestion).
+         Una 'gestión' es cualquier acción: asignación de motorizado, escaneo de
+         entrega o escaneo de excepción.
+       - Entre gestiones: Y horas desde la última gestión (cfg.horas_entre_gestiones).
+       - Vencimiento total: Z horas desde el recojo (franquiciado.horas_total_entrega).
+     Máximo 3 intentos fallidos (n_intentos >= 3 → devuelto).
+  3. Si un paquete está a ``umbral_horas`` o menos de vencer, se alerta por WA.
   4. Registra el resultado en ``alertas_log`` y en ``cron_log_detalles``.
 
 Función principal de entrada: ``ejecutar_alertas_global``.
@@ -30,10 +32,6 @@ from app.services.whatsapp_service import enviar_whatsapp
 
 logger = logging.getLogger(__name__)
 
-# Regla General J&T
-HORAS_PRIMERA_GESTION = 48
-HORAS_ENTRE_GESTIONES = 24
-
 # UTC → Perú (en producción el servidor corre en UTC)
 PERU_UTC_OFFSET = timedelta(hours=5)
 
@@ -54,39 +52,69 @@ def _deadline_entre_gestiones(ultimo_intento: datetime) -> datetime:
     return ultimo_intento + timedelta(hours=HORAS_ENTRE_GESTIONES)
 
 
-def _analizar_paquete(pkg: Paquete, now: datetime, umbral: float) -> Optional[dict]:
-    """Analiza un paquete y devuelve datos de alerta si está por vencer, o None."""
+def _analizar_paquete(
+    pkg: Paquete,
+    now: datetime,
+    umbral: float,
+    horas_primera_gestion: int,
+    horas_entre_gestiones: int,
+    horas_total_entrega: int,
+) -> list[dict]:
+    """Analiza un paquete y devuelve lista de alertas activas (puede ser más de una)."""
     if not pkg.fecha_recojo:
-        return None  # sin fecha de recojo, no se puede calcular el plazo
+        return []  # sin fecha de recojo no hay plazo calculable
 
-    if pkg.n_intentos == 0:
-        # Primera gestión: 48h desde recojo
-        deadline = _deadline_primera_gestion(pkg.fecha_recojo)
-        caso     = "primera_gestion"
-    else:
-        # Entre gestiones: 24h desde el último intento fallido
-        if not pkg.ultimo_intento_at:
-            return None
-        deadline = _deadline_entre_gestiones(pkg.ultimo_intento_at)
-        caso     = "entre_gestiones"
+    alertas: list[dict] = []
 
-    horas_restantes = (deadline - now).total_seconds() / 3600
-    if horas_restantes <= umbral:
-        return {
+    # ── Regla 1: Primera gestión ──────────────────────────────────────────
+    # Si no hay ninguna gestión, el plazo va desde el recojo
+    if pkg.ultima_gestion_at is None:
+        deadline = pkg.fecha_recojo + timedelta(hours=horas_primera_gestion)
+        horas_restantes = (deadline - now).total_seconds() / 3600
+        if horas_restantes <= umbral:
+            alertas.append({
+                "pkg":             pkg,
+                "caso":            "primera_gestion",
+                "deadline":        deadline,
+                "horas_restantes": horas_restantes,
+                "n_intentos":      pkg.n_intentos,
+            })
+
+    # ── Regla 2: Entre gestiones ─────────────────────────────────────────
+    # Si hay al menos una gestión, medir desde la última
+    elif pkg.ultima_gestion_at is not None:
+        deadline = pkg.ultima_gestion_at + timedelta(hours=horas_entre_gestiones)
+        horas_restantes = (deadline - now).total_seconds() / 3600
+        if horas_restantes <= umbral:
+            alertas.append({
+                "pkg":             pkg,
+                "caso":            "entre_gestiones",
+                "deadline":        deadline,
+                "horas_restantes": horas_restantes,
+                "n_intentos":      pkg.n_intentos,
+            })
+
+    # ── Regla 3: Vencimiento total (5 días / 120h por defecto) ────────────
+    total_deadline = pkg.fecha_recojo + timedelta(hours=horas_total_entrega)
+    horas_total_restantes = (total_deadline - now).total_seconds() / 3600
+    if horas_total_restantes <= umbral:
+        alertas.append({
             "pkg":             pkg,
-            "caso":            caso,
-            "deadline":        deadline,
-            "horas_restantes": horas_restantes,
+            "caso":            "vencimiento_total",
+            "deadline":        total_deadline,
+            "horas_restantes": horas_total_restantes,
             "n_intentos":      pkg.n_intentos,
-        }
-    return None
+        })
+
+    return alertas
 
 
 def _construir_mensaje(alertas: list[dict], franquiciado: Franquiciado, now: datetime) -> str:
     """Construye el texto del mensaje WhatsApp con los paquetes por vencer."""
     CASO_LABEL = {
-        "primera_gestion": "🔴 Primera gestión (48h desde recojo)",
-        "entre_gestiones": "🟠 Entre gestiones (24h desde último intento)",
+        "primera_gestion":  "🔴 Primera gestión pendiente",
+        "entre_gestiones":  "🟠 Entre gestiones (mucho tiempo sin acción)",
+        "vencimiento_total": "⚠️ Vencimiento total del plazo J&T",
     }
 
     lineas = [
@@ -160,6 +188,7 @@ def ejecutar_alertas_franquiciado(
     )
 
     now = hora_peru()
+    cfg = Configuracion.get()
     pendientes = Paquete.query.filter_by(
         franquiciado_id=franquiciado.id,
         estado=Paquete.ESTADO_PENDIENTE,
@@ -167,9 +196,13 @@ def ejecutar_alertas_franquiciado(
 
     alertas = []
     for pkg in pendientes:
-        resultado = _analizar_paquete(pkg, now, umbral_horas)
-        if resultado:
-            alertas.append(resultado)
+        resultados = _analizar_paquete(
+            pkg, now, umbral_horas,
+            horas_primera_gestion = franquiciado.horas_primera_gestion,
+            horas_entre_gestiones  = cfg.horas_entre_gestiones,
+            horas_total_entrega    = franquiciado.horas_total_entrega,
+        )
+        alertas.extend(resultados)
 
     emit(f"[{franquiciado.nombre}] Por vencer: {len(alertas)} de {len(pendientes)}")
 

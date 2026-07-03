@@ -56,14 +56,16 @@ def franquiciados_nuevo():
             return render_template("admin/franquiciados/form.html", form=form, modo="nuevo")
 
         fq = Franquiciado(
-            nombre            =form.nombre.data.strip(),
-            jt_user           =form.jt_user.data.strip(),
-            jt_pass           =form.jt_pass.data,
-            wa_grupo_id       =form.wa_grupo_id.data.strip(),
-            wa_status_grupo_id=form.wa_status_grupo_id.data.strip() or None,
-            textmebot_api_key =form.textmebot_api_key.data.strip(),
-            activo            =form.activo.data,
-            notas             =form.notas.data or None,
+            nombre                =form.nombre.data.strip(),
+            jt_user               =form.jt_user.data.strip(),
+            jt_pass               =form.jt_pass.data,
+            wa_grupo_id           =form.wa_grupo_id.data.strip(),
+            wa_status_grupo_id    =form.wa_status_grupo_id.data.strip() or None,
+            textmebot_api_key     =form.textmebot_api_key.data.strip(),
+            activo                =form.activo.data,
+            notas                 =form.notas.data or None,
+            horas_total_entrega   =form.horas_total_entrega.data,
+            horas_primera_gestion =form.horas_primera_gestion.data,
         )
         db.session.add(fq)
         db.session.commit()
@@ -104,15 +106,17 @@ def franquiciados_editar(fq_id: int):
     form = FranquiciadoForm(obj=fq)
 
     if form.validate_on_submit():
-        fq.nombre             = form.nombre.data.strip()
-        fq.jt_user            = form.jt_user.data.strip()
+        fq.nombre                = form.nombre.data.strip()
+        fq.jt_user               = form.jt_user.data.strip()
         if form.jt_pass.data:
             fq.jt_pass = form.jt_pass.data
-        fq.wa_grupo_id        = form.wa_grupo_id.data.strip()
-        fq.wa_status_grupo_id = form.wa_status_grupo_id.data.strip() or None
-        fq.textmebot_api_key  = form.textmebot_api_key.data.strip()
-        fq.activo             = form.activo.data
-        fq.notas              = form.notas.data or None
+        fq.wa_grupo_id           = form.wa_grupo_id.data.strip()
+        fq.wa_status_grupo_id    = form.wa_status_grupo_id.data.strip() or None
+        fq.textmebot_api_key     = form.textmebot_api_key.data.strip()
+        fq.activo                = form.activo.data
+        fq.notas                 = form.notas.data or None
+        fq.horas_total_entrega   = form.horas_total_entrega.data
+        fq.horas_primera_gestion = form.horas_primera_gestion.data
         # Invalidar cache de token si cambia el usuario o clave
         fq.jt_token_cache = None
         db.session.commit()
@@ -346,14 +350,15 @@ def configuracion():
     form = ConfiguracionForm(obj=cfg)
 
     if form.validate_on_submit():
-        cfg.umbral_dia      = form.umbral_dia.data
-        cfg.umbral_22       = form.umbral_22.data
-        cfg.umbral_23       = form.umbral_23.data
-        cfg.hora_inicio     = form.hora_inicio.data
-        cfg.hora_fin        = form.hora_fin.data
-        cfg.delay_whatsapp  = form.delay_whatsapp.data
-        cfg.sync_dias_atras = form.sync_dias_atras.data
-        cfg.sync_time_type  = form.sync_time_type.data
+        cfg.umbral_dia            = form.umbral_dia.data
+        cfg.umbral_22             = form.umbral_22.data
+        cfg.umbral_23             = form.umbral_23.data
+        cfg.hora_inicio           = form.hora_inicio.data
+        cfg.hora_fin              = form.hora_fin.data
+        cfg.delay_whatsapp        = form.delay_whatsapp.data
+        cfg.sync_dias_atras       = form.sync_dias_atras.data
+        cfg.sync_time_type        = form.sync_time_type.data
+        cfg.horas_entre_gestiones = form.horas_entre_gestiones.data
         db.session.commit()
         flash("Configuración guardada.", "success")
         return redirect(url_for("admin.configuracion"))

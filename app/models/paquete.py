@@ -36,6 +36,7 @@ class Paquete(db.Model):
     fecha_recojo      = db.Column(db.DateTime, nullable=True)
     n_intentos        = db.Column(db.SmallInteger, nullable=False, default=0)
     ultimo_intento_at = db.Column(db.DateTime, nullable=True)
+    ultima_gestion_at = db.Column(db.DateTime, nullable=True)  # cualquier gestión (asignación, entrega, excepción)
     created_at        = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at        = db.Column(
         db.DateTime, nullable=False,

@@ -1,3 +1,13 @@
-# nixpacks.toml no se usa — el build se hace con Dockerfile.
-# Ver Dockerfile en la raíz del proyecto.
+# nixpacks.toml
+# aptPkgs: paquetes Ubuntu/Debian (igual que vasmat).
+# playwright install --with-deps instala automáticamente todas las
+# dependencias de sistema de Chromium via apt.
+[phases.install]
+cmds = [
+  "pip install -r requirements.txt",
+  "playwright install chromium --with-deps"
+]
+
+[start]
+cmd = "gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
 

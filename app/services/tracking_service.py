@@ -38,12 +38,18 @@ _TIPOS_DEVOLUCION = {
 PERU_UTC_OFFSET = timedelta(hours=5)
 
 # --- Detección de fecha de recojo ------------------------------------------
-# Patrón CORRECTO: "Llegada del paquete [….pdv]" con parada anterior no vacía
-# Evento: "Descarga TR1/2" cuando el paquete sale del CEDIS y llega al PDV.
-_RE_PDV_DEST        = re.compile(r"Llegada del paquete\s*【[^】]*\.pdv[^】]*】")
-_RE_PARADA_NONEMPTY = re.compile(r"Parada anterior\s*【([^】\s][^】]*)】")
-# Patrón antiguo (fallback): parada anterior vacía
-_RE_PARADA_VACIA    = re.compile(r"Parada anterior\s*【\s*】")
+# Evento objetivo: "Descarga TR1/2" cuando el paquete llega al PDV desde el CEDIS.
+#
+# Criterios que identifican ÚNICAMENTE este evento (#9 en el historial):
+#   1. Descripción contiene "Llegada del paquete 【*.pdv】"  → destino es el PDV del franquiciado
+#   2. "Parada anterior 【*.Cedis】"                         → viene del hub regional (CEDIS)
+#
+# Eventos que NO deben matchear (Descarga en nodos intermedios):
+#   - "Llegada del paquete 【Callao.SC】 Parada anterior 【HQ.LIM】"     → destino no es .pdv
+#   - "Llegada del paquete 【AREQUIPA.Cedis】 Parada anterior 【Callao.SC】" → destino no es .pdv
+
+_RE_PDV_DEST    = re.compile(r"Llegada del paquete\s*【[^】]*\.pdv[^】]*】")
+_RE_CEDIS_PARADA = re.compile(r"Parada anterior\s*【[^】]*\.Cedis[^】]*】")
 
 # --- Detección de gestiones (cualquier acción del motorizado o asignación) ---
 _RE_MENSAJERO    = re.compile(r"su mensajero\s*【(.+?)】")
@@ -78,22 +84,17 @@ def _es_devolucion_jyt(scan_type: str) -> bool:
 
 
 def _es_recojo_almacen(descripcion: str, tipo_escaneo: str = "") -> bool:
-    """Detecta cuando el paquete sale del CEDIS y llega al PDV del franquiciado.
+    """Detecta cuando el paquete llega al PDV del franquiciado desde el CEDIS.
 
-    El evento correcto es una 'Descarga TR1/2' donde:
-      - La descripción contiene 'Llegada del paquete [….pdv]' (destino = PDV)
-      - La 'Parada anterior' es no vacía (viene del CEDIS)
+    Identifica el evento "Descarga TR1/2" número 9 del historial:
+      - Destino en la descripción contiene '.pdv'  (ej. 'ARE-22.pdv')
+      - Parada anterior contiene '.Cedis'           (ej. 'AREQUIPA.Cedis')
 
-    Fallback antiguo: 'Llegada del paquete' con 'Parada anterior [】' (vacía).
+    Ambas condiciones deben cumplirse simultáneamente para evitar falsos
+    positivos en descargas en nodos intermedios (Callao.SC, AREQUIPA.Cedis, etc.).
     """
     desc = (descripcion or "").strip()
-    # Patrón nuevo (correcto):
-    if _RE_PDV_DEST.search(desc) and _RE_PARADA_NONEMPTY.search(desc):
-        return True
-    # Patrón antiguo (fallback):
-    if desc.startswith("Llegada del paquete") and _RE_PARADA_VACIA.search(desc):
-        return True
-    return False
+    return bool(_RE_PDV_DEST.search(desc) and _RE_CEDIS_PARADA.search(desc))
 
 
 def _es_gestion(scan_type: str, descripcion: str) -> bool:

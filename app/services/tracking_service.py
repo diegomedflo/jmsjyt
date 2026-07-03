@@ -169,9 +169,8 @@ def refrescar_franquiciado(
     from jt_scraper import JTTracker, JTInstanceConfig
 
     def _to_peru(dt: Optional[datetime]) -> Optional[datetime]:
-        if dt is None:
-            return None
-        return dt if flask_debug else dt - PERU_UTC_OFFSET
+        # La API de JyT ya retorna hora peruana (UTC-5) — sin conversión adicional
+        return dt
 
     # Callbacks de persistencia del token en BD
     def token_getter() -> Optional[str]:
@@ -288,9 +287,8 @@ def refrescar_lote_stream(
     from jt_scraper import JTTracker, JTInstanceConfig
 
     def _to_peru(dt: Optional[datetime]) -> Optional[datetime]:
-        if dt is None:
-            return None
-        return dt if flask_debug else dt - PERU_UTC_OFFSET
+        # La API de JyT ya retorna hora peruana (UTC-5) — sin conversión adicional
+        return dt
 
     def token_getter() -> Optional[str]:
         db.session.refresh(franquiciado)

@@ -74,7 +74,12 @@
 
     {% if current_user.is_authenticated %}
     <div class="topbar">
-      <span class="topbar-title">{% block page_title %}{% endblock %}</span>
+      <div style="display:flex;align-items:center;gap:0.6rem;">
+        <button class="btn-hamburger" id="sidebarToggle" aria-label="Menú">
+          <i class="bi bi-list"></i>
+        </button>
+        <span class="topbar-title">{% block page_title %}{% endblock %}</span>
+      </div>
       <div class="topbar-actions">
         <span class="topbar-badge"><i class="bi bi-person-fill"></i> {{ current_user.username }}</span>
       </div>
@@ -101,5 +106,45 @@
 </div>
 
 {% block extra_scripts %}{% endblock %}
+
+{% if current_user.is_authenticated %}
+<!-- Overlay para sidebar mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<script>
+(function() {
+  var toggle   = document.getElementById('sidebarToggle');
+  var overlay  = document.getElementById('sidebarOverlay');
+  var sidebar  = document.querySelector('.sidebar');
+  if (!toggle || !sidebar) return;
+
+  function openSidebar() {
+    sidebar.classList.add('open');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  toggle.addEventListener('click', function() {
+    sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+  });
+  overlay.addEventListener('click', closeSidebar);
+
+  // Cierra con Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeSidebar();
+  });
+
+  // Cierra al navegar (clic en un link del sidebar)
+  sidebar.querySelectorAll('a').forEach(function(a) {
+    a.addEventListener('click', closeSidebar);
+  });
+})();
+</script>
+{% endif %}
 </body>
 </html>

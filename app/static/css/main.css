@@ -563,10 +563,131 @@ tbody tr:hover td { background: #F9FAFB; }
 }
 .filter-bar select:focus { border-color: var(--accent); }
 
-/* ── Responsive ──────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .sidebar { display: none; }
-  .kpi-grid { grid-template-columns: 1fr 1fr; }
-  .grid-2, .grid-5-7 { grid-template-columns: 1fr; }
-  .col-full { grid-column: 1; }
+/* ── Grid de 3 columnas (responsivo por clase) ───────────────── */
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
 }
+
+/* ── Botón hamburguesa (solo mobile) ─────────────────────────── */
+.btn-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.35rem;
+  color: var(--text-primary);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+/* ── Overlay para sidebar en mobile ──────────────────────────── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 999;
+}
+.sidebar-overlay.open { display: block; }
+
+/* ─────────────────────────────────────────────────────────────
+   RESPONSIVE — Tablet (≤ 1024px)
+   ───────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .grid-3         { grid-template-columns: repeat(2, 1fr); }
+  .kpi-grid       { grid-template-columns: repeat(2, 1fr); }
+  .grid-5-7       { grid-template-columns: 1fr; }
+  .grid-2         { grid-template-columns: 1fr; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   RESPONSIVE — Mobile (≤ 768px)
+   ───────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* ── Tipografía ── */
+  html, body { font-size: 14px; }
+
+  /* ── Layout raíz: apila sidebar + main ── */
+  .app-shell { flex-direction: column; overflow: visible; }
+
+  /* ── Sidebar: drawer lateral con overlay ── */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 1000;
+    transform: translateX(-110%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 230px;
+    width: 230px;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* ── Main wrapper: ocupa todo el ancho ── */
+  .main-wrapper { width: 100%; min-height: 100vh; }
+
+  /* ── Topbar: muestra botón hamburguesa ── */
+  .btn-hamburger { display: flex; }
+  .topbar { gap: 0.5rem; }
+
+  /* ── Contenido: menos padding ── */
+  .main-content {
+    padding: 0.875rem 1rem;
+    gap: 0.875rem;
+    height: auto;
+    min-height: calc(100vh - 60px);
+  }
+
+  /* ── Page header: apila botones debajo del título ── */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .page-header > :last-child {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .page-header .btn { flex: 1 1 auto; justify-content: center; }
+
+  /* ── Grids ── */
+  .grid-3         { grid-template-columns: 1fr; }
+  .kpi-grid       { grid-template-columns: 1fr 1fr; }
+  .grid-5-7       { grid-template-columns: 1fr; }
+  .grid-2         { grid-template-columns: 1fr; }
+  .col-full       { grid-column: 1; }
+
+  /* ── Tablas: scroll horizontal ── */
+  .table-wrapper  { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table           { min-width: 560px; }
+
+  /* ── Cards: sin sombra pesada en mobile ── */
+  .card { border-radius: var(--radius-md); }
+
+  /* ── KPI cards ── */
+  .kpi-card { padding: 0.875rem 1rem; }
+  .kpi-value { font-size: 1.5rem; }
+
+  /* ── Botones ── */
+  .btn      { padding: 0.45rem 0.85rem; font-size: 0.82rem; }
+  .btn-sm   { padding: 0.3rem 0.65rem; font-size: 0.77rem; }
+
+  /* ── Formularios ── */
+  .form-control { font-size: 0.9rem; }
+  .form-group { gap: 0.3rem; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   RESPONSIVE — Mobile pequeño (≤ 480px)
+   ───────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .kpi-grid       { grid-template-columns: 1fr; }
+  .main-content   { padding: 0.75rem; }
+  .topbar         { padding: 0 0.875rem; }
+  .btn-hamburger  { font-size: 1.4rem; }
+}
+

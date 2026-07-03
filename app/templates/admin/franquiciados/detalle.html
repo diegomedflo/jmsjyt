@@ -272,6 +272,7 @@
           </td>
           <td style="white-space:nowrap;font-size:0.8rem;">
             {% if pkg.ultima_gestion_at %}
+              {# Hubo al menos una gestión — mostrar fecha y tiempo desde ella #}
               <span style="color:var(--text-muted);">{{ pkg.ultima_gestion_at.strftime('%d/%m/%y %H:%M') }}</span>
               {% if pkg.estado == 'pendiente' %}
                 {% set delta_h = ((now - pkg.ultima_gestion_at).total_seconds() / 3600) | round(0, 'floor') | int %}
@@ -284,8 +285,20 @@
                   <span style="color:var(--negative);font-size:0.75rem;"> hace {{ delta_d }}d</span>
                 {% endif %}
               {% endif %}
+            {% elif pkg.fecha_recojo and pkg.estado == 'pendiente' %}
+              {# Sin gestiones pero sí recojo: el reloj corre desde el recojo #}
+              <span style="color:var(--text-muted);font-size:0.75rem;">desde recojo</span>
+              {% set delta_h = ((now - pkg.fecha_recojo).total_seconds() / 3600) | round(0, 'floor') | int %}
+              {% if delta_h < 1 %}
+                <span style="color:var(--accent);font-size:0.75rem;"> hace &lt;1h</span>
+              {% elif delta_h < 24 %}
+                <span style="color:var(--warning);font-size:0.75rem;"> hace {{ delta_h }}h</span>
+              {% else %}
+                {% set delta_d = (delta_h / 24) | round(0, 'floor') | int %}
+                <span style="color:var(--negative);font-size:0.75rem;"> hace {{ delta_d }}d</span>
+              {% endif %}
             {% else %}
-              <span style="color:var(--text-muted);">Sin gestiones</span>
+              <span style="color:var(--text-muted);">—</span>
             {% endif %}
           </td>
           <td style="text-align:right;">

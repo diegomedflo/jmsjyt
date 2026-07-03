@@ -142,6 +142,17 @@ class JTClient:
             },
         )
 
+    def get_abnormal(self, waybill_no: str) -> dict[str, Any]:
+        return self._post(
+            EP_ABNORMAL,
+            {
+                "current":   1,
+                "size":      100,
+                "waybillId": waybill_no,
+                "countryId": COUNTRY_ID,
+            },
+        )
+
     def get_return_applications(
         self,
         apply_time_from: str,

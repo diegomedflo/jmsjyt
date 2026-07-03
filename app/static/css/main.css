@@ -8,8 +8,8 @@
 :root {
   /* Colores */
   --sidebar-bg:            #0B2D2A;
-  --sidebar-text:          rgba(255, 255, 255, 0.60);
-  --sidebar-text-hover:    rgba(255, 255, 255, 0.90);
+  --sidebar-text:          rgba(255, 255, 255, 0.78);
+  --sidebar-text-hover:    rgba(255, 255, 255, 1.0);
   --sidebar-active-bg:     #FFFFFF;
   --sidebar-active-text:   #0B2D2A;
   --sidebar-label:         rgba(255, 255, 255, 0.35);
@@ -48,7 +48,7 @@
 html, body {
   height: 100%;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-primary);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -103,12 +103,12 @@ a { color: inherit; text-decoration: none; }
 /* Secciones */
 .sidebar-section { margin-bottom: 0.5rem; }
 .sidebar-label {
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--sidebar-label);
-  padding: 0.5rem 0.5rem 0.35rem;
+  color: rgba(255, 255, 255, 0.45);
+  padding: 0.6rem 0.5rem 0.35rem;
 }
 
 /* Nav items */
@@ -116,11 +116,11 @@ a { color: inherit; text-decoration: none; }
 .sidebar-nav a {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.55rem 0.65rem;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
   border-radius: var(--radius-sm);
   color: var(--sidebar-text);
-  font-size: 0.82rem;
+  font-size: 0.86rem;
   font-weight: 500;
   transition: background 0.15s, color 0.15s;
 }
@@ -170,8 +170,8 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 0;
 }
 .topbar-title {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
   color: var(--text-primary);
 }
 .topbar-actions { display: flex; align-items: center; gap: 0.75rem; }
@@ -223,8 +223,8 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px solid var(--card-border);
 }
 .card-title {
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.86rem;
+  font-weight: 700;
   color: var(--text-primary);
   display: flex;
   align-items: center;
@@ -271,22 +271,22 @@ a { color: inherit; text-decoration: none; }
   padding: 1.1rem 1.25rem;
 }
 .kpi-label {
-  font-size: 0.72rem;
-  font-weight: 500;
+  font-size: 0.76rem;
+  font-weight: 600;
   color: var(--text-secondary);
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.5rem;
 }
 .kpi-value {
-  font-size: 1.55rem;
+  font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text-primary);
   line-height: 1;
 }
 .kpi-sub {
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   color: var(--text-muted);
-  margin-top: 0.4rem;
+  margin-top: 0.45rem;
 }
 .kpi-positive { color: var(--positive); }
 .kpi-negative { color: var(--negative); }
@@ -299,21 +299,22 @@ table {
   font-size: 0.8rem;
 }
 thead th {
-  font-size: 0.68rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  padding: 0.6rem 1rem;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  padding: 0.7rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--card-border);
   white-space: nowrap;
 }
 tbody td {
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid rgba(0,0,0,0.04);
   color: var(--text-primary);
   vertical-align: middle;
+  font-size: 0.85rem;
 }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover td { background: #F9FAFB; }

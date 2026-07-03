@@ -4,7 +4,7 @@
 
 {% block content %}
 
-<!-- ── Header ───────────────────────────────────────────────────────────── -->
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
 <div class="page-header">
   <div class="page-header-left">
     <h1>
@@ -16,7 +16,7 @@
       {% endif %}
     </h1>
     <a href="{{ url_for('admin.franquiciados_lista') }}"
-       style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.8rem; color:var(--color-text-secondary); margin-top:0.3rem;">
+       style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.8rem;color:var(--text-secondary);margin-top:0.3rem;">
       <i class="bi bi-arrow-left"></i> Volver a Franquiciados
     </a>
   </div>
@@ -25,7 +25,7 @@
   </a>
 </div>
 
-<!-- ── Fila superior: Configuración + Últimas alertas ───────────────────── -->
+<!-- ── Fila: Configuración + Últimas alertas ──────────────────────────── -->
 <div class="grid-5-7" style="margin-bottom:1.25rem;">
 
   <div class="card">
@@ -38,10 +38,10 @@
         <span class="dl-value mono">{{ fq.jt_user }}</span>
 
         <span class="dl-label">Grupo WA Alertas</span>
-        <span class="dl-value mono" style="overflow:hidden; text-overflow:ellipsis;">{{ fq.wa_grupo_id }}</span>
+        <span class="dl-value mono" style="overflow:hidden;text-overflow:ellipsis;">{{ fq.wa_grupo_id }}</span>
 
         <span class="dl-label">Grupo WA Monitor</span>
-        <span class="dl-value mono" style="overflow:hidden; text-overflow:ellipsis;">{{ fq.wa_status_grupo_id or '—' }}</span>
+        <span class="dl-value mono" style="overflow:hidden;text-overflow:ellipsis;">{{ fq.wa_status_grupo_id or '—' }}</span>
 
         <span class="dl-label">API Key</span>
         <span class="dl-value mono">{{ fq.textmebot_api_key[:12] }}…</span>
@@ -76,14 +76,14 @@
         <tbody>
           {% for al in alertas %}
           <tr>
-            <td style="white-space:nowrap; font-size:0.8rem;">{{ al.enviado_at.strftime('%d/%m %H:%M') }}</td>
+            <td style="white-space:nowrap;font-size:0.8rem;">{{ al.enviado_at.strftime('%d/%m %H:%M') }}</td>
             <td>
               <span class="badge {{ 'badge-yellow' if al.tipo == 'alerta' else 'badge-gray' }}">{{ al.tipo }}</span>
             </td>
             <td style="text-align:center;">
               <span class="badge {{ 'badge-green' if al.ok else 'badge-red' }}">{{ 'OK' if al.ok else 'Error' }}</span>
             </td>
-            <td style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--color-text-secondary); font-size:0.78rem;">
+            <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:0.78rem;">
               {{ al.respuesta_api or '—' }}
             </td>
           </tr>
@@ -92,67 +92,67 @@
       </table>
     </div>
     {% else %}
-    <div class="card-body" style="color:var(--color-text-secondary); font-size:0.85rem;">Sin alertas registradas aún.</div>
+    <div class="card-body" style="color:var(--text-secondary);font-size:0.85rem;">Sin alertas registradas aún.</div>
     {% endif %}
   </div>
 
 </div>
 
-<!-- ── Acciones de importación / sincronización ──────────────────────────── -->
+<!-- ── Acciones: Sincronizar / Excel / Texto ──────────────────────────── -->
 <div class="card" style="margin-bottom:1.25rem;">
   <div class="card-header">
     <span class="card-title"><i class="bi bi-cloud-download"></i> Obtener paquetes desde JMS</span>
   </div>
   <div class="card-body" style="padding:1rem;">
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem;">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
 
-      <!-- Sincronizar automático -->
-      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1rem; display:flex; flex-direction:column; gap:0.65rem;">
-        <div style="font-weight:600; font-size:0.88rem; display:flex; align-items:center; gap:0.4rem; color:var(--color-accent);">
+      <!-- Sincronizar -->
+      <div style="border:1px solid var(--card-border);border-radius:10px;padding:1rem;display:flex;flex-direction:column;gap:0.65rem;">
+        <div style="font-weight:600;font-size:0.88rem;display:flex;align-items:center;gap:0.4rem;color:var(--accent);">
           <i class="bi bi-arrow-repeat"></i> Sincronizar desde JMS
         </div>
-        <p style="font-size:0.78rem; color:var(--color-text-secondary); margin:0; line-height:1.55; flex:1;">
+        <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;line-height:1.55;flex:1;">
           Extrae automáticamente los paquetes de esta cuenta
           vía API interna J&amp;T con captcha OpenCV.
           Tarda ~30–60 s (captcha + paginación).
         </p>
         <form method="POST" action="{{ url_for('admin.paquetes_sincronizar', fq_id=fq.id) }}"
               style="margin:0;"
-              onsubmit="var b=this.querySelector('button'); b.disabled=true; b.innerHTML='<i class=\'bi bi-hourglass-split\'></i> Sincronizando…';">
+              onsubmit="var b=this.querySelector('button');b.disabled=true;b.innerHTML='&#9203; Sincronizando…';">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <button type="submit" class="btn btn-primary" style="width:100%; font-size:0.83rem;">
+          <button type="submit" class="btn btn-primary" style="width:100%;font-size:0.83rem;">
             <i class="bi bi-arrow-repeat"></i> Ejecutar scraper
           </button>
         </form>
       </div>
 
       <!-- Importar Excel -->
-      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1rem; display:flex; flex-direction:column; gap:0.65rem;">
-        <div style="font-weight:600; font-size:0.88rem; display:flex; align-items:center; gap:0.4rem; color:#1a7f3c;">
+      <div style="border:1px solid var(--card-border);border-radius:10px;padding:1rem;display:flex;flex-direction:column;gap:0.65rem;">
+        <div style="font-weight:600;font-size:0.88rem;display:flex;align-items:center;gap:0.4rem;color:#1a7f3c;">
           <i class="bi bi-file-earmark-excel"></i> Importar Excel
         </div>
-        <p style="font-size:0.78rem; color:var(--color-text-secondary); margin:0; line-height:1.55; flex:1;">
+        <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;line-height:1.55;flex:1;">
           Sube el <strong>.xlsx</strong> exportado desde JMS
           (Indicadores → Monitoreo entrada al puerto → Exportar).
           Backup automático en Google Drive.
         </p>
         <a href="{{ url_for('admin.paquetes_importar_excel', fq_id=fq.id) }}"
-           class="btn btn-outline" style="width:100%; text-align:center; font-size:0.83rem;">
+           class="btn btn-outline" style="width:100%;text-align:center;font-size:0.83rem;">
           <i class="bi bi-upload"></i> Subir Excel
         </a>
       </div>
 
       <!-- Importar texto -->
-      <div style="border:1px solid var(--card-border); border-radius:10px; padding:1rem; display:flex; flex-direction:column; gap:0.65rem;">
-        <div style="font-weight:600; font-size:0.88rem; display:flex; align-items:center; gap:0.4rem; color:var(--color-text-secondary);">
+      <div style="border:1px solid var(--card-border);border-radius:10px;padding:1rem;display:flex;flex-direction:column;gap:0.65rem;">
+        <div style="font-weight:600;font-size:0.88rem;display:flex;align-items:center;gap:0.4rem;color:var(--text-secondary);">
           <i class="bi bi-input-cursor-text"></i> Importar texto
         </div>
-        <p style="font-size:0.78rem; color:var(--color-text-secondary); margin:0; line-height:1.55; flex:1;">
+        <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;line-height:1.55;flex:1;">
           Pega códigos de guía manualmente, uno por línea.
           Útil para agregar paquetes puntuales sin el portal.
         </p>
         <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}"
-           class="btn btn-outline" style="width:100%; text-align:center; font-size:0.83rem;">
+           class="btn btn-outline" style="width:100%;text-align:center;font-size:0.83rem;">
           <i class="bi bi-list-ul"></i> Ingresar códigos
         </a>
       </div>
@@ -161,22 +161,21 @@
   </div>
 </div>
 
-<!-- ── Tabla de paquetes con filtro y paginación ─────────────────────────── -->
+<!-- ── Tabla de paquetes ───────────────────────────────────────────────── -->
 <div class="card">
-  <div class="card-header" style="flex-wrap:wrap; gap:0.5rem;">
+  <div class="card-header" style="flex-wrap:wrap;gap:0.5rem;">
     <span class="card-title">
       <i class="bi bi-box-seam"></i> Paquetes
-      <span style="font-size:0.78rem; color:var(--color-text-secondary); font-weight:400; margin-left:0.4rem;">
-        {{ pagination.total }} en total
+      <span style="font-size:0.78rem;color:var(--text-secondary);font-weight:400;margin-left:0.4rem;">
+        — {{ pagination.total }} en total
       </span>
     </span>
-    <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+    <!-- Filtros por estado -->
+    <div style="display:flex;gap:0.3rem;flex-wrap:wrap;">
       {% for est, label in [('','Todos'),('pendiente','Pendientes'),('entregado','Entregados'),('devuelto','Devueltos'),('cancelado','Cancelados')] %}
       <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, estado=est) }}"
          class="btn btn-sm {{ 'btn-primary' if estado_filtro == est else 'btn-ghost' }}"
-         style="font-size:0.75rem; padding:0.2rem 0.65rem;">
-        {{ label }}
-      </a>
+         style="font-size:0.75rem;padding:0.2rem 0.6rem;">{{ label }}</a>
       {% endfor %}
     </div>
   </div>
@@ -187,11 +186,11 @@
       <thead>
         <tr>
           <th>Waybill</th>
-          <th style="text-align:center; width:110px;">Estado</th>
-          <th style="text-align:center; width:80px;">Intentos</th>
+          <th style="text-align:center;width:110px;">Estado</th>
+          <th style="text-align:center;width:80px;">Intentos</th>
           <th style="width:110px;">Recojo</th>
           <th style="width:115px;">Último intento</th>
-          <th style="text-align:right; width:65px;">Acción</th>
+          <th style="text-align:right;width:65px;">Acción</th>
         </tr>
       </thead>
       <tbody>
@@ -199,16 +198,16 @@
         {% for pkg in paquetes %}
         <tr>
           <td>
-            <span style="font-family:monospace; font-size:0.83rem; letter-spacing:0.02em; color:var(--color-text-primary);">{{ pkg.waybill_no }}</span>
+            <span style="font-family:monospace;font-size:0.83rem;letter-spacing:0.02em;">{{ pkg.waybill_no }}</span>
           </td>
           <td style="text-align:center;">
             <span class="badge {{ badgecls[pkg.estado] }}">{{ pkg.estado }}</span>
           </td>
-          <td style="text-align:center; color:var(--color-text-secondary); font-size:0.85rem;">{{ pkg.n_intentos }}</td>
-          <td style="color:var(--color-text-secondary); white-space:nowrap; font-size:0.8rem;">
+          <td style="text-align:center;color:var(--text-secondary);font-size:0.85rem;">{{ pkg.n_intentos }}</td>
+          <td style="color:var(--text-muted);white-space:nowrap;font-size:0.8rem;">
             {{ pkg.fecha_recojo.strftime('%d/%m/%y %H:%M') if pkg.fecha_recojo else '—' }}
           </td>
-          <td style="color:var(--color-text-secondary); white-space:nowrap; font-size:0.8rem;">
+          <td style="color:var(--text-muted);white-space:nowrap;font-size:0.8rem;">
             {{ pkg.ultimo_intento_at.strftime('%d/%m/%y %H:%M') if pkg.ultimo_intento_at else '—' }}
           </td>
           <td style="text-align:right;">
@@ -223,7 +222,7 @@
               </button>
             </form>
             {% else %}
-            <span style="color:var(--color-text-secondary);">—</span>
+            <span style="color:var(--text-muted);">—</span>
             {% endif %}
           </td>
         </tr>
@@ -234,36 +233,36 @@
 
   <!-- Paginación -->
   {% if pagination.pages > 1 %}
-  <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 1rem; border-top:1px solid var(--card-border);">
-    <span style="font-size:0.8rem; color:var(--color-text-secondary);">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border-top:1px solid var(--card-border);">
+    <span style="font-size:0.8rem;color:var(--text-secondary);">
       {{ pagination.first }}–{{ pagination.last }} de {{ pagination.total }}
     </span>
-    <div style="display:flex; gap:0.25rem; align-items:center;">
+    <div style="display:flex;gap:0.25rem;align-items:center;">
       {% if pagination.has_prev %}
       <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=pagination.prev_num, estado=estado_filtro) }}"
-         class="btn btn-ghost btn-sm" style="padding:0.2rem 0.55rem;"><i class="bi bi-chevron-left"></i></a>
+         class="btn btn-ghost btn-sm" style="padding:0.2rem 0.5rem;"><i class="bi bi-chevron-left"></i></a>
       {% endif %}
       {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
         {% if p %}
           <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=p, estado=estado_filtro) }}"
              class="btn btn-sm {{ 'btn-primary' if p == pagination.page else 'btn-ghost' }}"
-             style="padding:0.2rem 0.55rem; min-width:30px; text-align:center;">{{ p }}</a>
+             style="padding:0.2rem 0.5rem;min-width:30px;text-align:center;">{{ p }}</a>
         {% else %}
-          <span style="color:var(--color-text-secondary); padding:0 0.15rem;">…</span>
+          <span style="color:var(--text-secondary);padding:0 0.15rem;">…</span>
         {% endif %}
       {% endfor %}
       {% if pagination.has_next %}
       <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=pagination.next_num, estado=estado_filtro) }}"
-         class="btn btn-ghost btn-sm" style="padding:0.2rem 0.55rem;"><i class="bi bi-chevron-right"></i></a>
+         class="btn btn-ghost btn-sm" style="padding:0.2rem 0.5rem;"><i class="bi bi-chevron-right"></i></a>
       {% endif %}
     </div>
-    <span style="font-size:0.8rem; color:var(--color-text-secondary);">Pág. {{ pagination.page }}/{{ pagination.pages }}</span>
+    <span style="font-size:0.8rem;color:var(--text-secondary);">Pág. {{ pagination.page }}/{{ pagination.pages }}</span>
   </div>
   {% endif %}
 
   {% else %}
-  <div style="padding:2.5rem; text-align:center; color:var(--color-text-secondary);">
-    <i class="bi bi-box-seam" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:0.5rem;"></i>
+  <div style="padding:2.5rem;text-align:center;color:var(--text-secondary);">
+    <i class="bi bi-box-seam" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:0.5rem;"></i>
     Sin paquetes{% if estado_filtro %} con estado <strong>{{ estado_filtro }}</strong>{% endif %}.
   </div>
   {% endif %}

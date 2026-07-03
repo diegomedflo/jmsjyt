@@ -98,7 +98,16 @@ class OutletMonitor:
                     f"timeType={time_type} usuario={self._cfg.jt_user!r}")
 
         token = self._auth.get_token()
-        return self._paginate(token, sd, ed, time_type)
+        result = self._paginate(token, sd, ed, time_type)
+
+        # Si falló con token en caché, forzar login fresco y reintentar
+        if not result:
+            logger.info("[outlet_monitor] Sin resultados con token cacheado — forzando login fresco…")
+            self._auth.clear_cache()
+            token = self._auth.get_token(force=True)
+            result = self._paginate(token, sd, ed, time_type)
+
+        return result
 
     # ── Paginación ────────────────────────────────────────────────────────
 
@@ -124,6 +133,8 @@ class OutletMonitor:
             "countryId":           str(COUNTRY_ID),
         }
 
+        _token_refreshed = False
+
         while True:
             payload = {**base_payload, "current": page, "size": _PAGE_SIZE}
             try:
@@ -131,6 +142,14 @@ class OutletMonitor:
                     url, json=payload, headers=headers,
                     timeout=30, proxies=proxy,
                 )
+                # HTTP 4xx generalmente indica token expirado en J&T
+                if resp.status_code in (401, 403, 405) and not _token_refreshed:
+                    logger.warning(f"[outlet_monitor] HTTP {resp.status_code} → renovando token…")
+                    self._auth.clear_cache()
+                    token   = self._auth.get_token(force=True)
+                    headers = _build_headers(token)
+                    _token_refreshed = True
+                    continue  # reintentar misma página con token fresco
                 resp.raise_for_status()
                 body = resp.json()
             except Exception as exc:

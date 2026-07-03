@@ -2,7 +2,55 @@
 {% block title %}{{ fq.nombre }} — JMSJyT Admin{% endblock %}
 {% block page_title %}Detalle Franquiciado{% endblock %}
 
+{% block extra_head %}
+<style>
+/* ── Loading overlay ─────────────────────────────────────── */
+#loadingOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 45, 42, 0.72);
+  z-index: 9999;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  backdrop-filter: blur(3px);
+}
+#loadingOverlay.visible { display: flex; }
+.spinner {
+  width: 52px; height: 52px;
+  border: 5px solid rgba(255,255,255,0.2);
+  border-top-color: #10B981;
+  border-radius: 50%;
+  animation: spin 0.85s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loadingMsg {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  max-width: 260px;
+  line-height: 1.5;
+}
+#loadingDetail {
+  color: rgba(255,255,255,0.65);
+  font-size: 0.82rem;
+  text-align: center;
+  max-width: 300px;
+}
+</style>
+{% endblock %}
+
 {% block content %}
+
+<!-- ── Loading overlay ───────────────────────────────────────────────── -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div id="loadingMsg">Ejecutando…</div>
+  <div id="loadingDetail"></div>
+</div>
 
 <!-- ── Header ─────────────────────────────────────────────────────────── -->
 <div class="page-header">
@@ -117,7 +165,7 @@
         </p>
         <form method="POST" action="{{ url_for('admin.paquetes_sincronizar', fq_id=fq.id) }}"
               style="margin:0;"
-              onsubmit="var b=this.querySelector('button');b.disabled=true;b.innerHTML='&#9203; Sincronizando…';">
+              onsubmit="showLoader('Sincronizando desde JMS…', 'Resolviendo captcha con OpenCV y paginando la API. Tarda ~60 s.')">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
           <button type="submit" class="btn btn-primary" style="width:100%;font-size:0.83rem;">
             <i class="bi bi-arrow-repeat"></i> Ejecutar scraper
@@ -136,7 +184,7 @@
         </p>
         <form method="POST" action="{{ url_for('admin.paquetes_actualizar_tracking', fq_id=fq.id) }}"
               style="margin:0;"
-              onsubmit="var b=this.querySelector('button');b.disabled=true;b.innerHTML='&#9203; Actualizando…';">
+              onsubmit="showLoader('Actualizando tracking…', 'Consultando el historial POD de J&T para cada paquete pendiente. Puede tardar varios minutos.')">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
           <button type="submit" class="btn btn-primary" style="width:100%;font-size:0.83rem;">
             <i class="bi bi-graph-up-arrow"></i> Actualizar tracking ahora
@@ -197,10 +245,11 @@
       <thead>
         <tr>
           <th>Waybill</th>
-          <th style="text-align:center;width:110px;">Estado</th>
-          <th style="text-align:center;width:80px;">Intentos</th>
-          <th style="width:110px;">Recojo</th>
-          <th style="width:115px;">Último intento</th>
+          <th style="text-align:center;width:100px;">Estado</th>
+          <th style="text-align:center;width:70px;">Intentos</th>
+          <th style="width:100px;">Recojo</th>
+          <th style="width:100px;">Último intento</th>
+          <th style="width:130px;">Última gestión</th>
           <th style="text-align:right;width:65px;">Acción</th>
         </tr>
       </thead>
@@ -220,6 +269,22 @@
           </td>
           <td style="color:var(--text-muted);white-space:nowrap;font-size:0.8rem;">
             {{ pkg.ultimo_intento_at.strftime('%d/%m/%y %H:%M') if pkg.ultimo_intento_at else '—' }}
+          </td>
+          <td style="white-space:nowrap;font-size:0.8rem;">
+            {% if pkg.ultima_gestion_at %}
+              <span style="color:var(--text-muted);">{{ pkg.ultima_gestion_at.strftime('%d/%m/%y %H:%M') }}</span>
+              {% set delta_h = ((now - pkg.ultima_gestion_at).total_seconds() / 3600) | round(0, 'floor') | int %}
+              {% if delta_h < 1 %}
+                <span style="color:var(--accent);font-size:0.75rem;"> hace &lt;1h</span>
+              {% elif delta_h < 24 %}
+                <span style="color:var(--warning);font-size:0.75rem;"> hace {{ delta_h }}h</span>
+              {% else %}
+                {% set delta_d = (delta_h / 24) | round(0, 'floor') | int %}
+                <span style="color:var(--negative);font-size:0.75rem;"> hace {{ delta_d }}d</span>
+              {% endif %}
+            {% else %}
+              <span style="color:var(--text-muted);">Sin gestiones</span>
+            {% endif %}
           </td>
           <td style="text-align:right;">
             {% if pkg.estado == 'pendiente' %}
@@ -291,4 +356,14 @@
   {% endif %}
 </div>
 
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function showLoader(msg, detail) {
+  document.getElementById('loadingMsg').textContent    = msg    || 'Ejecutando…';
+  document.getElementById('loadingDetail').textContent = detail || '';
+  document.getElementById('loadingOverlay').classList.add('visible');
+}
+</script>
 {% endblock %}

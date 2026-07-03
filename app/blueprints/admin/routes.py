@@ -78,6 +78,7 @@ def franquiciados_nuevo():
 @admin_bp.route("/franquiciados/<int:fq_id>")
 @login_required
 def franquiciados_detalle(fq_id: int):
+    from datetime import datetime
     fq      = db.get_or_404(Franquiciado, fq_id)
     page    = request.args.get("page", 1, type=int)
     estado  = request.args.get("estado", "")
@@ -96,6 +97,7 @@ def franquiciados_detalle(fq_id: int):
         pagination=pagination,
         estado_filtro=estado,
         alertas=alertas,
+        now=datetime.utcnow(),
     )
 
 

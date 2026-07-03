@@ -309,6 +309,44 @@ def paquetes_cancelar(pkg_id: int):
     return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
 
 
+@admin_bp.route("/paquetes/<int:pkg_id>/siniestrar", methods=["POST"])
+@login_required
+def paquetes_siniestrar(pkg_id: int):
+    pkg = db.get_or_404(Paquete, pkg_id)
+    fq_id = pkg.franquiciado_id
+    pkg.estado = Paquete.ESTADO_SINIESTRADO
+    db.session.commit()
+    flash(f"Paquete {pkg.waybill_no} marcado como siniestrado.", "warning")
+    return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+
+# ── Actualizar tracking de un franquiciado ───────────────────────────────────
+
+@admin_bp.route("/franquiciados/<int:fq_id>/paquetes/actualizar-tracking", methods=["POST"])
+@login_required
+def paquetes_actualizar_tracking(fq_id: int):
+    """Consulta el POD de J&T para cada paquete pendiente del franquiciado
+    y actualiza fecha_recojo, n_intentos, ultimo_intento_at, ultima_gestion_at.
+    Equivale a ejecutar el cron solo para este franquiciado."""
+    from app.services.tracking_service import refrescar_franquiciado
+
+    fq = db.get_or_404(Franquiciado, fq_id)
+
+    try:
+        stats = refrescar_franquiciado(fq, flask_debug=current_app.debug)
+        flash(
+            f"Tracking actualizado: {stats['consultados']} paquete(s) procesado(s). "
+            f"Entregados: {stats['entregados']} · Devueltos: {stats['devueltos']} · "
+            f"Errores: {stats['errores']}.",
+            "success" if stats["errores"] == 0 else "warning",
+        )
+    except Exception as exc:
+        current_app.logger.exception(f"Error actualizando tracking franq={fq_id}")
+        flash(f"Error al actualizar tracking: {exc}", "danger")
+
+    return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+
 # ── Cron Logs ────────────────────────────────────────────────────────────────
 
 @admin_bp.route("/cron-logs")

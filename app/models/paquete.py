@@ -18,10 +18,11 @@ class Paquete(db.Model):
 
     __tablename__ = "paquetes"
 
-    ESTADO_PENDIENTE  = "pendiente"
-    ESTADO_ENTREGADO  = "entregado"
-    ESTADO_DEVUELTO   = "devuelto"
-    ESTADO_CANCELADO  = "cancelado"
+    ESTADO_PENDIENTE   = "pendiente"
+    ESTADO_ENTREGADO   = "entregado"
+    ESTADO_DEVUELTO    = "devuelto"
+    ESTADO_CANCELADO   = "cancelado"
+    ESTADO_SINIESTRADO = "siniestrado"
 
     id                = db.Column(db.BigInteger, primary_key=True)
     franquiciado_id   = db.Column(
@@ -30,7 +31,7 @@ class Paquete(db.Model):
     )
     waybill_no        = db.Column(db.String(120), nullable=False, index=True)
     estado            = db.Column(
-        db.Enum("pendiente", "entregado", "devuelto", "cancelado", native_enum=False),
+        db.Enum("pendiente", "entregado", "devuelto", "cancelado", "siniestrado", native_enum=False),
         nullable=False, default="pendiente", index=True,
     )
     fecha_recojo      = db.Column(db.DateTime, nullable=True)

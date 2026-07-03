@@ -98,7 +98,7 @@
 
 </div>
 
-<!-- ── Acciones: Sincronizar / Excel / Texto ──────────────────────────── -->
+<!-- ── Acciones: Sincronizar / Excel / Texto / Actualizar tracking ──────── -->
 <div class="card" style="margin-bottom:1.25rem;">
   <div class="card-header">
     <span class="card-title"><i class="bi bi-cloud-download"></i> Obtener paquetes desde JMS</span>
@@ -112,9 +112,8 @@
           <i class="bi bi-arrow-repeat"></i> Sincronizar desde JMS
         </div>
         <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;line-height:1.55;flex:1;">
-          Extrae automáticamente los paquetes de esta cuenta
-          vía API interna J&amp;T con captcha OpenCV.
-          Tarda ~30–60 s (captcha + paginación).
+          <strong>Paso 1.</strong> Importa los <em>códigos de guía</em> de esta cuenta
+          desde la API de JMS. No llena fecha de recojo ni intentos — eso lo hace el Paso 2.
         </p>
         <form method="POST" action="{{ url_for('admin.paquetes_sincronizar', fq_id=fq.id) }}"
               style="margin:0;"
@@ -122,6 +121,25 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
           <button type="submit" class="btn btn-primary" style="width:100%;font-size:0.83rem;">
             <i class="bi bi-arrow-repeat"></i> Ejecutar scraper
+          </button>
+        </form>
+      </div>
+
+      <!-- Actualizar tracking -->
+      <div style="border:2px solid var(--accent);border-radius:10px;padding:1rem;display:flex;flex-direction:column;gap:0.65rem;">
+        <div style="font-weight:600;font-size:0.88rem;display:flex;align-items:center;gap:0.4rem;color:var(--accent);">
+          <i class="bi bi-graph-up-arrow"></i> Actualizar tracking
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;line-height:1.55;flex:1;">
+          <strong>Paso 2.</strong> Para cada paquete pendiente, consulta el historial POD en J&T
+          y llena <em>fecha de recojo, intentos, último intento</em>. Puede tardar varios minutos.
+        </p>
+        <form method="POST" action="{{ url_for('admin.paquetes_actualizar_tracking', fq_id=fq.id) }}"
+              style="margin:0;"
+              onsubmit="var b=this.querySelector('button');b.disabled=true;b.innerHTML='&#9203; Actualizando…';">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="btn btn-primary" style="width:100%;font-size:0.83rem;">
+            <i class="bi bi-graph-up-arrow"></i> Actualizar tracking ahora
           </button>
         </form>
       </div>
@@ -142,22 +160,15 @@
         </a>
       </div>
 
-      <!-- Importar texto -->
-      <div style="border:1px solid var(--card-border);border-radius:10px;padding:1rem;display:flex;flex-direction:column;gap:0.65rem;">
-        <div style="font-weight:600;font-size:0.88rem;display:flex;align-items:center;gap:0.4rem;color:var(--text-secondary);">
-          <i class="bi bi-input-cursor-text"></i> Importar texto
-        </div>
-        <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;line-height:1.55;flex:1;">
-          Pega códigos de guía manualmente, uno por línea.
-          Útil para agregar paquetes puntuales sin el portal.
-        </p>
-        <a href="{{ url_for('admin.paquetes_importar', fq_id=fq.id) }}"
-           class="btn btn-outline" style="width:100%;text-align:center;font-size:0.83rem;">
-          <i class="bi bi-list-ul"></i> Ingresar códigos
-        </a>
-      </div>
-
     </div>
+
+    <!-- Nota explicativa -->
+    <p style="margin-top:0.85rem;font-size:0.78rem;color:var(--text-secondary);background:var(--bg);border-radius:8px;padding:0.65rem 0.85rem;">
+      <i class="bi bi-info-circle"></i>
+      <strong>Flujo recomendado:</strong>
+      Ejecutar <strong>Paso 1</strong> (importar códigos) → luego <strong>Paso 2</strong> (llenar tracking).
+      El cron automático hace ambas cosas cada hora, pero puedes forzarlo aquí a demanda.
+    </p>
   </div>
 </div>
 
@@ -194,7 +205,7 @@
         </tr>
       </thead>
       <tbody>
-        {% set badgecls = {'pendiente':'badge-yellow','entregado':'badge-green','devuelto':'badge-red','cancelado':'badge-gray'} %}
+        {% set badgecls = {'pendiente':'badge-yellow','entregado':'badge-green','devuelto':'badge-red','cancelado':'badge-gray','siniestrado':'badge-orange'} %}
         {% for pkg in paquetes %}
         <tr>
           <td>
@@ -212,15 +223,27 @@
           </td>
           <td style="text-align:right;">
             {% if pkg.estado == 'pendiente' %}
-            <form method="POST"
-                  action="{{ url_for('admin.paquetes_cancelar', pkg_id=pkg.id) }}"
-                  style="display:inline;"
-                  onsubmit="return confirm('¿Cancelar {{ pkg.waybill_no }}?')">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-              <button class="btn btn-danger btn-sm btn-icon" title="Cancelar">
-                <i class="bi bi-x-circle"></i>
-              </button>
-            </form>
+            <div style="display:flex;gap:0.3rem;justify-content:flex-end;">
+              <form method="POST"
+                    action="{{ url_for('admin.paquetes_siniestrar', pkg_id=pkg.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('¿Marcar {{ pkg.waybill_no }} como SINIESTRADO?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <button class="btn btn-sm btn-icon" title="Siniestrar"
+                        style="border:1px solid var(--warning);color:var(--warning);background:none;border-radius:6px;padding:0.2rem 0.4rem;">
+                  <i class="bi bi-exclamation-triangle"></i>
+                </button>
+              </form>
+              <form method="POST"
+                    action="{{ url_for('admin.paquetes_cancelar', pkg_id=pkg.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('¿Cancelar {{ pkg.waybill_no }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <button class="btn btn-danger btn-sm btn-icon" title="Cancelar">
+                  <i class="bi bi-x-circle"></i>
+                </button>
+              </form>
+            </div>
             {% else %}
             <span style="color:var(--text-muted);">—</span>
             {% endif %}

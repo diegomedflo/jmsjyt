@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · {{ fq.nombre }} — JMSJyT Admin{% endblock %}
+{% block page_title %}Dashboard franquiciado{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<style>
+.dash-section { margin-bottom: 1.25rem; }
+.chart-wrap   { position: relative; width: 100%; }
+/* evitar que Chart.js agrande el contenedor infinitamente */
+canvas        { max-width: 100%; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>
+      <i class="bi bi-bar-chart-line"></i> {{ fq.nombre }}
+      <span style="font-size:0.75rem;font-weight:400;color:var(--text-secondary);margin-left:0.5rem;">Dashboard de métricas</span>
+    </h1>
+    <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id) }}"
+       style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.8rem;color:var(--text-secondary);margin-top:0.3rem;">
+      <i class="bi bi-arrow-left"></i> Volver al detalle
+    </a>
+  </div>
+</div>
+
+{% if total_paquetes == 0 %}
+<!-- Sin datos -->
+<div class="card" style="padding:3rem;text-align:center;">
+  <i class="bi bi-bar-chart" style="font-size:3rem;color:var(--text-secondary);opacity:0.3;display:block;margin-bottom:1rem;"></i>
+  <p style="color:var(--text-secondary);">Este franquiciado aún no tiene paquetes registrados.<br>Las métricas estarán disponibles una vez que se importen paquetes.</p>
+  <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id) }}" class="btn btn-primary" style="margin-top:1rem;">
+    <i class="bi bi-arrow-left"></i> Volver al detalle
+  </a>
+</div>
+
+{% else %}
+
+<!-- ── KPI Cards ──────────────────────────────────────────────────────── -->
+<div class="kpi-grid dash-section">
+
+  <div class="kpi-card">
+    <div class="kpi-label"><i class="bi bi-box-seam" style="color:var(--accent);"></i> Total paquetes</div>
+    <div class="kpi-value">{{ total_paquetes }}</div>
+    <div class="kpi-sub">Histórico acumulado</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-label"><i class="bi bi-check-circle" style="color:#10B981;"></i> Entregados</div>
+    <div class="kpi-value kpi-positive">{{ por_estado.get('entregado', 0) }}</div>
+    <div class="kpi-sub">Firmados por destinatario</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-label"><i class="bi bi-hourglass-split" style="color:#FBBF24;"></i> Pendientes</div>
+    <div class="kpi-value" style="color:#92400E;">{{ por_estado.get('pendiente', 0) }}</div>
+    <div class="kpi-sub">En proceso de entrega</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-label"><i class="bi bi-percent" style="color:var(--accent);"></i> Tasa de entrega</div>
+    <div class="kpi-value kpi-positive">{{ tasa_entrega }}%</div>
+    <div class="kpi-sub">Entregados / Total</div>
+  </div>
+
+</div>
+
+<!-- ── Evolución 30 días + Estado actual ─────────────────────────────── -->
+<div class="grid-5-7 dash-section">
+
+  <!-- Donut: por estado -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-pie-chart"></i> Estado actual</span>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:1rem;">
+      <div class="chart-wrap" style="max-width:220px;">
+        <canvas id="chartEstado"></canvas>
+      </div>
+      <!-- Leyenda manual -->
+      <div style="display:flex;flex-direction:column;gap:0.35rem;width:100%;max-width:220px;">
+        {% set estados_config = [
+          ('pendiente',   '#FBBF24', 'Pendientes'),
+          ('entregado',   '#10B981', 'Entregados'),
+          ('devuelto',    '#F87171', 'Devueltos'),
+          ('cancelado',   '#9CA3AF', 'Cancelados'),
+          ('siniestrado', '#F97316', 'Siniestrados'),
+        ] %}
+        {% for key, color, label in estados_config %}
+          {% if por_estado.get(key, 0) > 0 %}
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.8rem;">
+            <div style="display:flex;align-items:center;gap:0.45rem;">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{{ color }};flex-shrink:0;"></span>
+              <span style="color:var(--text-secondary);">{{ label }}</span>
+            </div>
+            <span style="font-weight:600;">{{ por_estado.get(key, 0) }}</span>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Líneas: recogidos vs entregados últimos 30 días -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-graph-up"></i> Evolución últimos 30 días</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-wrap" style="height:220px;">
+        <canvas id="chartEvolucion"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% if hay_entregas %}
+<!-- ── Turnos de entrega + Hora del día ───────────────────────────────── -->
+<div class="grid-5-7 dash-section">
+
+  <!-- Donut: mañana / tarde / noche -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-clock"></i> Turno de entrega</span>
+      <span style="font-size:0.74rem;color:var(--text-secondary);">Hora Perú (UTC−5)</span>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:1rem;">
+      <div class="chart-wrap" style="max-width:200px;">
+        <canvas id="chartTurno"></canvas>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.35rem;width:100%;max-width:200px;">
+        {% for color, rango, val in [
+          ('#FBBF24', 'Mañana  (06–12 h)', manana),
+          ('#10B981', 'Tarde   (12–18 h)', tarde),
+          ('#6366F1', 'Noche   (18–06 h)', noche),
+        ] %}
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.8rem;">
+          <div style="display:flex;align-items:center;gap:0.45rem;">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{{ color }};flex-shrink:0;"></span>
+            <span style="color:var(--text-secondary);">{{ rango }}</span>
+          </div>
+          <span style="font-weight:600;">{{ val }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Barras: entregas por hora del día -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-bar-chart"></i> Entregas por hora del día</span>
+      <span style="font-size:0.74rem;color:var(--text-secondary);">Hora Perú (UTC−5)</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-wrap" style="height:220px;">
+        <canvas id="chartHora"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endif %}
+
+<!-- ── Fila condicional: Provincias + Origen / Intentos ──────────────── -->
+{% if hay_provincias or hay_origenes or hay_intentos %}
+<div class="grid-2 dash-section">
+
+  {% if hay_provincias %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-geo-alt"></i> Top provincias</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-wrap" style="height:{% if provincias_labels|length > 4 %}240px{% else %}180px{% endif %};">
+        <canvas id="chartProvincias"></canvas>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if hay_origenes %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-shop"></i> Origen del pedido</span>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:1rem;">
+      <div class="chart-wrap" style="max-width:200px;">
+        <canvas id="chartOrigen"></canvas>
+      </div>
+    </div>
+  </div>
+  {% elif hay_intentos %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-repeat"></i> Intentos fallidos hasta entrega</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="chartIntentos"></canvas>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endif %}
+
+<!-- Segunda fila condicional: Intentos (si también hay origen) -->
+{% if hay_origenes and hay_intentos %}
+<div class="dash-section">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-repeat"></i> Intentos fallidos hasta entrega</span>
+      <span style="font-size:0.74rem;color:var(--text-secondary);">Solo paquetes ya entregados</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="chartIntentos"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endif %}{# fin total_paquetes == 0 #}
+
+{% endblock %}
+
+{% block extra_scripts %}
+{% if total_paquetes > 0 %}
+<script>
+/* ── Paleta compartida ──────────────────────────────────────────────────── */
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size   = 12;
+Chart.defaults.color       = '#6B7280';
+
+const ACCENT  = '#10B981';
+const ACCENT2 = '#059669';
+const INDIGO  = '#6366F1';
+const YELLOW  = '#FBBF24';
+const RED     = '#F87171';
+const GRAY    = '#9CA3AF';
+const ORANGE  = '#F97316';
+
+/* ── Datos inyectados desde Python ─────────────────────────────────────── */
+const diasLabels      = {{ dias_labels      | tojson }};
+const recogidosSerie  = {{ recogidos_serie  | tojson }};
+const entregadosSerie = {{ entregados_serie | tojson }};
+const porHora         = {{ por_hora         | tojson }};
+
+{% if hay_provincias %}
+const provinciasLabels = {{ provincias_labels | tojson }};
+const provinciasValues = {{ provincias_values | tojson }};
+{% endif %}
+
+{% if hay_origenes %}
+const origenesLabels = {{ origenes_labels | tojson }};
+const origenesValues = {{ origenes_values | tojson }};
+{% endif %}
+
+{% if hay_intentos %}
+const intentosLabels = {{ intentos_labels | tojson }};
+const intentosValues = {{ intentos_values | tojson }};
+{% endif %}
+
+/* ── Helpers ────────────────────────────────────────────────────────────── */
+function tooltipTitle(items) { return items[0].label; }
+
+/* ── 1. Donut: Estado actual ─────────────────────────────────────────────── */
+new Chart(document.getElementById('chartEstado'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Pendiente', 'Entregado', 'Devuelto', 'Cancelado', 'Siniestrado'],
+    datasets: [{
+      data: [
+        {{ por_estado.get('pendiente',   0) }},
+        {{ por_estado.get('entregado',   0) }},
+        {{ por_estado.get('devuelto',    0) }},
+        {{ por_estado.get('cancelado',   0) }},
+        {{ por_estado.get('siniestrado', 0) }},
+      ],
+      backgroundColor: [YELLOW, ACCENT, RED, GRAY, ORANGE],
+      borderWidth: 0,
+      hoverOffset: 6,
+    }],
+  },
+  options: {
+    cutout: '68%',
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { title: tooltipTitle } },
+    },
+  },
+});
+
+/* ── 2. Líneas: Evolución 30 días ────────────────────────────────────────── */
+new Chart(document.getElementById('chartEvolucion'), {
+  type: 'line',
+  data: {
+    labels: diasLabels,
+    datasets: [
+      {
+        label: 'Recogidos',
+        data: recogidosSerie,
+        borderColor: INDIGO,
+        backgroundColor: 'rgba(99,102,241,0.08)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+        borderWidth: 2,
+      },
+      {
+        label: 'Entregados',
+        data: entregadosSerie,
+        borderColor: ACCENT,
+        backgroundColor: 'rgba(16,185,129,0.08)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+        borderWidth: 2,
+      },
+    ],
+  },
+  options: {
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14 } },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: {
+          maxTicksLimit: 10,
+          maxRotation: 0,
+        },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { precision: 0 },
+        grid: { color: 'rgba(0,0,0,0.05)' },
+      },
+    },
+  },
+});
+
+{% if hay_entregas %}
+/* ── 3. Donut: Turno de entrega ──────────────────────────────────────────── */
+new Chart(document.getElementById('chartTurno'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Mañana (06–12)', 'Tarde (12–18)', 'Noche (18–06)'],
+    datasets: [{
+      data: [{{ manana }}, {{ tarde }}, {{ noche }}],
+      backgroundColor: [YELLOW, ACCENT, INDIGO],
+      borderWidth: 0,
+      hoverOffset: 6,
+    }],
+  },
+  options: {
+    cutout: '65%',
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { title: tooltipTitle } },
+    },
+  },
+});
+
+/* ── 4. Barras: Entregas por hora del día ────────────────────────────────── */
+const horaColors = porHora.map((_, i) => {
+  if (i >= 6  && i < 12) return YELLOW;
+  if (i >= 12 && i < 18) return ACCENT;
+  return INDIGO;
+});
+new Chart(document.getElementById('chartHora'), {
+  type: 'bar',
+  data: {
+    labels: Array.from({length:24}, (_, i) => `${String(i).padStart(2,'0')}h`),
+    datasets: [{
+      label: 'Entregas',
+      data: porHora,
+      backgroundColor: horaColors,
+      borderRadius: 4,
+      borderSkipped: false,
+    }],
+  },
+  options: {
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          title: items => `${items[0].label} (hora Perú)`,
+        },
+      },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+    },
+  },
+});
+{% endif %}
+
+{% if hay_provincias %}
+/* ── 5. Barras horizontales: Top provincias ──────────────────────────────── */
+new Chart(document.getElementById('chartProvincias'), {
+  type: 'bar',
+  data: {
+    labels: provinciasLabels,
+    datasets: [{
+      label: 'Paquetes',
+      data: provinciasValues,
+      backgroundColor: ACCENT,
+      borderRadius: 4,
+      borderSkipped: false,
+    }],
+  },
+  options: {
+    indexAxis: 'y',
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+      y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+    },
+  },
+});
+{% endif %}
+
+{% if hay_origenes %}
+/* ── 6. Donut: Origen del pedido ─────────────────────────────────────────── */
+const origenPalette = [ACCENT, INDIGO, YELLOW, ORANGE, '#EC4899', '#14B8A6'];
+new Chart(document.getElementById('chartOrigen'), {
+  type: 'doughnut',
+  data: {
+    labels: origenesLabels,
+    datasets: [{
+      data: origenesValues,
+      backgroundColor: origenPalette.slice(0, origenesLabels.length),
+      borderWidth: 0,
+      hoverOffset: 6,
+    }],
+  },
+  options: {
+    cutout: '60%',
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12, font: { size: 11 } } },
+      tooltip: { callbacks: { title: tooltipTitle } },
+    },
+  },
+});
+{% endif %}
+
+{% if hay_intentos %}
+/* ── 7. Barras: Intentos fallidos ────────────────────────────────────────── */
+new Chart(document.getElementById('chartIntentos'), {
+  type: 'bar',
+  data: {
+    labels: intentosLabels.map(n => n + (n == '1' ? ' intento' : ' intentos')),
+    datasets: [{
+      label: 'Paquetes entregados',
+      data: intentosValues,
+      backgroundColor: intentosLabels.map((n, i) =>
+        i === 0 ? ACCENT : i === 1 ? YELLOW : RED
+      ),
+      borderRadius: 4,
+      borderSkipped: false,
+    }],
+  },
+  options: {
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+    },
+  },
+});
+{% endif %}
+</script>
+{% endif %}
+{% endblock %}

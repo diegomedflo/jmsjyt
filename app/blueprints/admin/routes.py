@@ -69,6 +69,7 @@ def franquiciados_nuevo():
             notas                 =form.notas.data or None,
             horas_total_entrega   =form.horas_total_entrega.data,
             horas_primera_gestion =form.horas_primera_gestion.data,
+            horas_entre_gestiones =form.horas_entre_gestiones.data,
         )
         db.session.add(fq)
         db.session.commit()
@@ -136,6 +137,7 @@ def franquiciados_editar(fq_id: int):
         fq.notas                 = form.notas.data or None
         fq.horas_total_entrega   = form.horas_total_entrega.data
         fq.horas_primera_gestion = form.horas_primera_gestion.data
+        fq.horas_entre_gestiones = form.horas_entre_gestiones.data
         # Invalidar cache de token si cambia el usuario o clave
         fq.jt_token_cache = None
         db.session.commit()
@@ -548,6 +550,163 @@ def alertas_lista():
     )
 
 
+# ── Dashboard por franquiciado ───────────────────────────────────────────────
+
+@admin_bp.route("/franquiciados/<int:fq_id>/dashboard")
+@login_required
+def franquiciados_dashboard(fq_id: int):
+    from datetime import datetime, timedelta
+    from sqlalchemy import func, cast
+    from sqlalchemy.types import Date as SADate
+
+    fq = db.get_or_404(Franquiciado, fq_id)
+
+    hoy           = datetime.utcnow().date()
+    hace_30       = hoy - timedelta(days=29)
+    fecha_inicio  = datetime(hace_30.year, hace_30.month, hace_30.day)
+
+    # ── 1. Totales por estado ────────────────────────────────────────────────
+    por_estado_raw = (
+        db.session.query(Paquete.estado, func.count().label("n"))
+        .filter(Paquete.franquiciado_id == fq_id)
+        .group_by(Paquete.estado)
+        .all()
+    )
+    por_estado     = {r.estado: r.n for r in por_estado_raw}
+    total_paquetes = sum(por_estado.values())
+    tasa_entrega   = (
+        round(por_estado.get("entregado", 0) / total_paquetes * 100, 1)
+        if total_paquetes else 0
+    )
+
+    # ── 2. Series de 30 días ─────────────────────────────────────────────────
+    dias_date  = [hoy - timedelta(days=i) for i in range(29, -1, -1)]
+    dias_iso   = [d.isoformat() for d in dias_date]
+    dias_labels = [d.strftime("%d/%m") for d in dias_date]
+
+    def _key(val):
+        """Normaliza date/string → 'YYYY-MM-DD'."""
+        return val.isoformat() if hasattr(val, "isoformat") else str(val)[:10]
+
+    dia_recojo  = cast(Paquete.fecha_recojo, SADate)
+    recogidos_raw = (
+        db.session.query(dia_recojo.label("dia"), func.count().label("n"))
+        .filter(
+            Paquete.franquiciado_id == fq_id,
+            Paquete.fecha_recojo.isnot(None),
+            Paquete.fecha_recojo >= fecha_inicio,
+        )
+        .group_by(dia_recojo)
+        .order_by(dia_recojo)
+        .all()
+    )
+    recogidos_map  = {_key(r.dia): r.n for r in recogidos_raw}
+    recogidos_serie = [recogidos_map.get(d, 0) for d in dias_iso]
+
+    dia_entrega = cast(Paquete.ultima_gestion_at, SADate)
+    entregados_raw = (
+        db.session.query(dia_entrega.label("dia"), func.count().label("n"))
+        .filter(
+            Paquete.franquiciado_id == fq_id,
+            Paquete.estado == "entregado",
+            Paquete.ultima_gestion_at.isnot(None),
+            Paquete.ultima_gestion_at >= fecha_inicio,
+        )
+        .group_by(dia_entrega)
+        .order_by(dia_entrega)
+        .all()
+    )
+    entregados_map  = {_key(r.dia): r.n for r in entregados_raw}
+    entregados_serie = [entregados_map.get(d, 0) for d in dias_iso]
+
+    # ── 3. Entregas por hora del día (hora Perú = UTC − 5) ──────────────────
+    ts_rows = (
+        db.session.query(Paquete.ultima_gestion_at)
+        .filter(
+            Paquete.franquiciado_id == fq_id,
+            Paquete.estado == "entregado",
+            Paquete.ultima_gestion_at.isnot(None),
+        )
+        .all()
+    )
+    por_hora = [0] * 24
+    for (dt,) in ts_rows:
+        por_hora[(dt.hour - 5) % 24] += 1
+
+    manana = sum(por_hora[6:12])
+    tarde  = sum(por_hora[12:18])
+    noche  = sum(por_hora[18:24]) + sum(por_hora[0:6])
+
+    # ── 4. Top provincias ────────────────────────────────────────────────────
+    provincias_raw = (
+        db.session.query(Paquete.destinatario_provincia, func.count().label("n"))
+        .filter(
+            Paquete.franquiciado_id == fq_id,
+            Paquete.destinatario_provincia.isnot(None),
+        )
+        .group_by(Paquete.destinatario_provincia)
+        .order_by(func.count().desc())
+        .limit(8)
+        .all()
+    )
+    provincias_labels = [r.destinatario_provincia for r in provincias_raw]
+    provincias_values = [r.n for r in provincias_raw]
+
+    # ── 5. Por origen ────────────────────────────────────────────────────────
+    origenes_raw = (
+        db.session.query(Paquete.origen_pedido, func.count().label("n"))
+        .filter(
+            Paquete.franquiciado_id == fq_id,
+            Paquete.origen_pedido.isnot(None),
+        )
+        .group_by(Paquete.origen_pedido)
+        .order_by(func.count().desc())
+        .limit(6)
+        .all()
+    )
+    origenes_labels = [r.origen_pedido for r in origenes_raw]
+    origenes_values = [r.n for r in origenes_raw]
+
+    # ── 6. Intentos fallidos (paquetes entregados) ───────────────────────────
+    intentos_raw = (
+        db.session.query(Paquete.n_intentos, func.count().label("n"))
+        .filter(
+            Paquete.franquiciado_id == fq_id,
+            Paquete.estado == "entregado",
+        )
+        .group_by(Paquete.n_intentos)
+        .order_by(Paquete.n_intentos)
+        .all()
+    )
+    intentos_labels = [str(r.n_intentos) for r in intentos_raw]
+    intentos_values = [r.n for r in intentos_raw]
+
+    return render_template(
+        "admin/franquiciados/dashboard.html",
+        fq=fq,
+        total_paquetes=total_paquetes,
+        por_estado=por_estado,
+        tasa_entrega=tasa_entrega,
+        dias_labels=dias_labels,
+        recogidos_serie=recogidos_serie,
+        entregados_serie=entregados_serie,
+        por_hora=por_hora,
+        manana=manana,
+        tarde=tarde,
+        noche=noche,
+        provincias_labels=provincias_labels,
+        provincias_values=provincias_values,
+        hay_provincias=bool(provincias_labels),
+        origenes_labels=origenes_labels,
+        origenes_values=origenes_values,
+        hay_origenes=bool(origenes_labels),
+        intentos_labels=intentos_labels,
+        intentos_values=intentos_values,
+        hay_intentos=bool(intentos_labels),
+        hay_entregas=bool(ts_rows),
+    )
+
+
 # ── Configuración ────────────────────────────────────────────────────────────
 
 @admin_bp.route("/configuracion", methods=["GET", "POST"])
@@ -565,7 +724,6 @@ def configuracion():
         cfg.delay_whatsapp        = form.delay_whatsapp.data
         cfg.sync_dias_atras       = form.sync_dias_atras.data
         cfg.sync_time_type        = form.sync_time_type.data
-        cfg.horas_entre_gestiones = form.horas_entre_gestiones.data
         db.session.commit()
         flash("Configuración guardada.", "success")
         return redirect(url_for("admin.configuracion"))

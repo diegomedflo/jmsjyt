@@ -96,18 +96,7 @@ def _build_estado_message(franquiciado: Franquiciado, now_peru: datetime) -> str
         .all()
     ]
 
-    # En tránsito: pendiente SIN fecha_recojo (aún no llegó al PDV desde Lima)
-    en_transito = (
-        Paquete.query
-        .filter(
-            Paquete.franquiciado_id == fid,
-            Paquete.estado == Paquete.ESTADO_PENDIENTE,
-            Paquete.fecha_recojo.is_(None),
-        )
-        .count()
-    )
-
-    # Pendientes de entrega: pendiente CON fecha_recojo (trivialmente en lote activo)
+    # Pendientes: paquetes recogidos aún no entregados (trivialmente en lote activo)
     pendientes = (
         Paquete.query
         .filter(
@@ -146,11 +135,10 @@ def _build_estado_message(franquiciado: Franquiciado, now_peru: datetime) -> str
     return (
         f"📦 *Estado de paquetes — {franquiciado.nombre}*\n"
         f"_(Actualizado: {now_peru.strftime('%d/%m/%Y %H:%M')} hora Perú)_\n\n"
-        f"🚚 En tránsito (Lima → PDV): *{en_transito}*\n"
-        f"⏳ Pendientes de entrega: *{pendientes}*\n"
+        f"⏳ Pendientes: *{pendientes}*\n"
         f"↩️ Devueltos: *{devueltos}*\n"
         f"✅ Entregados: *{entregados}*\n"
-        f"📊 Total lotes activos: *{total}*\n\n"
+        f"📊 Total: *{total}*\n\n"
         f"_Nuestro sistema actualiza estados cada hora, de 8am a 11pm (hora Perú)._"
     )
 

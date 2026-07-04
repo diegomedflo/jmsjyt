@@ -30,13 +30,18 @@ class JTTracker:
         self._token  = self._auth.get_token(force=True)
         self._client = JTClient(self._token, self._cfg)
 
-    def track(self, waybill_no: str, include_raw: bool = False) -> TrackingResult:
+    def track(self, waybill_no: str, include_raw: bool = False, include_detail: bool = True) -> TrackingResult:
         """Rastrea una guía.  Re-autentica si el token expiró; activa el proxy
-        de respaldo ante señales de bloqueo de IP."""
+        de respaldo ante señales de bloqueo de IP.
+
+        Args:
+            include_detail: Si True (default) llama a get_order_detail para obtener
+                datos del destinatario.  Pasar False cuando ya fueron guardados.
+        """
         waybill_no = waybill_no.strip()
         for attempt in range(3):
             try:
-                detail_raw = self._client.get_order_detail(waybill_no)
+                detail_raw = self._client.get_order_detail(waybill_no) if include_detail else {}
                 pod_raw    = self._client.get_pod_tracking(waybill_no)
                 return parser.build_result(
                     waybill_no, detail_raw, pod_raw, include_raw=include_raw

@@ -38,6 +38,20 @@ class Paquete(db.Model):
     n_intentos        = db.Column(db.SmallInteger, nullable=False, default=0)
     ultimo_intento_at = db.Column(db.DateTime, nullable=True)
     ultima_gestion_at = db.Column(db.DateTime, nullable=True)  # cualquier gestión (asignación, entrega, excepción)
+
+    # Datos estáticos del pedido (se guardan una sola vez desde get_order_detail)
+    detalle_cargado        = db.Column(db.Boolean, nullable=False, default=False)
+    destinatario_nombre    = db.Column(db.String(200), nullable=True)
+    destinatario_telefono  = db.Column(db.String(50),  nullable=True)
+    destinatario_provincia = db.Column(db.String(100), nullable=True)
+    destinatario_ciudad    = db.Column(db.String(100), nullable=True)
+    destinatario_area      = db.Column(db.String(100), nullable=True)
+    destinatario_direccion = db.Column(db.String(500), nullable=True)
+    peso_cobrado           = db.Column(db.Float,       nullable=True)  # kg
+    tipo_mercancia         = db.Column(db.String(100), nullable=True)
+    modo_pago              = db.Column(db.String(100), nullable=True)
+    origen_pedido          = db.Column(db.String(100), nullable=True)  # TEMU, Shopee, etc.
+
     created_at        = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at        = db.Column(
         db.DateTime, nullable=False,

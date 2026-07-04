@@ -137,6 +137,24 @@ def interpretar_evento(scan_type: Optional[str], descripcion: Optional[str]) -> 
     return st or "—"
 
 
+def _guardar_detalle(paquete: Paquete, detail) -> None:
+    """Persiste los datos estáticos del pedido (solo la primera vez)."""
+    if not detail:
+        return
+    r = detail.receiver
+    paquete.destinatario_nombre    = r.name
+    paquete.destinatario_telefono  = r.phone
+    paquete.destinatario_provincia = r.province
+    paquete.destinatario_ciudad    = r.city
+    paquete.destinatario_area      = r.area
+    paquete.destinatario_direccion = r.address
+    paquete.peso_cobrado           = detail.charge_weight
+    paquete.tipo_mercancia         = detail.goods_type
+    paquete.modo_pago              = detail.payment_mode
+    paquete.origen_pedido          = detail.order_source
+    paquete.detalle_cargado        = True
+
+
 def _guardar_historial(paquete: Paquete, eventos: list) -> None:
     """Reemplaza el historial de tracking del paquete (delete + insert)."""
     TrackingHistorial.query.filter_by(paquete_id=paquete.id).delete()
@@ -211,11 +229,15 @@ def refrescar_franquiciado(
     for pkg in pendientes:
         _pkg_error = False
         try:
-            result = tracker.track(pkg.waybill_no)
+            include_detail = not pkg.detalle_cargado
+            result = tracker.track(pkg.waybill_no, include_detail=include_detail)
             stats["consultados"] += 1
 
             eventos = result.events or []
             _guardar_historial(pkg, eventos)
+
+            if include_detail:
+                _guardar_detalle(pkg, result.detail)
 
             # Determinar fecha de recojo del almacén (primera vez que llega al PDV)
             for ev in reversed(eventos):
@@ -325,11 +347,15 @@ def refrescar_lote_stream(
         _entregado = False
         _devuelto  = False
         try:
-            result = tracker.track(pkg.waybill_no)
+            include_detail = not pkg.detalle_cargado
+            result = tracker.track(pkg.waybill_no, include_detail=include_detail)
             stats["consultados"] += 1
 
             eventos = result.events or []
             _guardar_historial(pkg, eventos)
+
+            if include_detail:
+                _guardar_detalle(pkg, result.detail)
 
             for ev in reversed(eventos):
                 if _es_recojo_almacen(ev.description or "", ev.scan_type or ""):

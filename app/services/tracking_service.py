@@ -270,6 +270,14 @@ def refrescar_franquiciado(
 
             if include_detail:
                 _guardar_detalle(pkg, result.detail)
+                # Si el detalle sigue sin cargarse (API no lo devolvió o falló),
+                # marcar igual para no reintentar en cada corrida del cron.
+                if not pkg.detalle_cargado:
+                    pkg.detalle_cargado = True
+                    logger.debug(
+                        f"[{franquiciado.nombre}] {pkg.waybill_no}: "
+                        "detalle estático no disponible — marcado para no reintentar."
+                    )
 
             # Determinar fecha de recojo del almacén (primera vez que llega al PDV)
             for ev in reversed(eventos):
@@ -397,6 +405,8 @@ def refrescar_lote_stream(
 
             if include_detail:
                 _guardar_detalle(pkg, result.detail)
+                if not pkg.detalle_cargado:
+                    pkg.detalle_cargado = True
 
             for ev in reversed(eventos):
                 if _es_recojo_almacen(ev.description or "", ev.scan_type or ""):

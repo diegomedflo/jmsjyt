@@ -281,6 +281,10 @@ ALTER TABLE paquetes
 ALTER TABLE franquiciados
     ADD COLUMN IF NOT EXISTS wa_status_grupo_id VARCHAR(120);
 
+-- v2.5: estado espera /agregar (WhatsApp)
+ALTER TABLE franquiciados
+    ADD COLUMN IF NOT EXISTS wa_esperando_codigos_at TIMESTAMPTZ;
+
 
 -- ── Admin user inicial ────────────────────────────────────────
 -- usuario: admin | contrasena: Mateo1997

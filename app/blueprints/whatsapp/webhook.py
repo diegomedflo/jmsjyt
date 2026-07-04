@@ -174,6 +174,13 @@ def _run_importar_bg(app, franquiciado_id: int, group_id: str) -> None:
             )
 
         try:
+            from datetime import date, timedelta
+            from app.models import Configuracion
+
+            sync_cfg = Configuracion.get()
+            start_date = (date.today() - timedelta(days=sync_cfg.sync_dias_atras)).isoformat()
+            end_date   = date.today().isoformat()
+
             cfg = JTInstanceConfig(
                 jt_user=franquiciado.jt_user,
                 jt_pass=franquiciado.jt_pass,
@@ -181,12 +188,17 @@ def _run_importar_bg(app, franquiciado_id: int, group_id: str) -> None:
                 token_setter=lambda v: _persist_token(franquiciado, v),
             )
             monitor = OutletMonitor(cfg)
-            waybills = monitor.fetch_waybills()
+            waybills = monitor.fetch_waybills(
+                start_date=start_date,
+                end_date=end_date,
+                time_type=sync_cfg.sync_time_type,
+            )
 
             if not waybills:
                 _send(
-                    "⚠️ No se encontraron paquetes en JMS para el rango de fechas consultado.\n"
-                    "Verifica que tengas paquetes asignados en los últimos 30 días."
+                    f"⚠️ No se encontraron paquetes en JMS para el rango consultado "
+                    f"({start_date} → {end_date}).\n"
+                    "Verifica que tengas paquetes asignados en ese período."
                 )
                 return
 

@@ -585,6 +585,7 @@
           <th style="width:100px;">Recojo</th>
           <th style="width:105px;">Últ. intento fallido</th>
           <th style="width:130px;">Última gestión</th>
+          <th style="width:160px;">Detalles cliente</th>
           <th style="text-align:center;width:60px;">JMS</th>
           <th style="text-align:right;width:65px;">Acción</th>
         </tr>
@@ -635,6 +636,21 @@
               {% endif %}
             {% else %}
               <span style="color:var(--text-muted);">—</span>
+            {% endif %}
+          </td>
+          <td style="font-size:0.79rem;line-height:1.4;">
+            {% if pkg.detalle_cargado %}
+              {% if pkg.destinatario_nombre %}
+              <div style="font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:155px;" title="{{ pkg.destinatario_nombre }}">{{ pkg.destinatario_nombre }}</div>
+              {% endif %}
+              {% if pkg.destinatario_telefono %}
+              <div style="color:var(--text-secondary);font-size:0.75rem;"><i class="bi bi-telephone" style="margin-right:2px;"></i>{{ pkg.destinatario_telefono }}</div>
+              {% endif %}
+              {% if pkg.origen_pedido %}
+              <span style="display:inline-block;margin-top:2px;font-size:0.68rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:4px;background:var(--accent-light);color:var(--accent-dark);">{{ pkg.origen_pedido }}</span>
+              {% endif %}
+            {% else %}
+              <span style="color:var(--text-muted);font-size:0.75rem;">—</span>
             {% endif %}
           </td>
           <td style="text-align:center;">

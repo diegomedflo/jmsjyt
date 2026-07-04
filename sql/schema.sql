@@ -289,6 +289,15 @@ ALTER TABLE franquiciados
 ALTER TABLE franquiciados
     ADD COLUMN IF NOT EXISTS last_tracking_at TIMESTAMPTZ;
 
+-- v2.7: datos adicionales del pedido (remitente + códigos extra de la misma llamada getOrderDetail)
+ALTER TABLE paquetes
+    ADD COLUMN IF NOT EXISTS remitente_nombre   VARCHAR(200),
+    ADD COLUMN IF NOT EXISTS remitente_telefono VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS codigo_cliente     VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS nombre_cliente     VARCHAR(200),
+    ADD COLUMN IF NOT EXISTS codigo_despacho    VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS pdv_destino        VARCHAR(200);
+
 
 -- ── Admin user inicial ────────────────────────────────────────
 -- usuario: admin | contrasena: Mateo1997

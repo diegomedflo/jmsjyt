@@ -51,6 +51,13 @@ class Paquete(db.Model):
     tipo_mercancia         = db.Column(db.String(100), nullable=True)
     modo_pago              = db.Column(db.String(100), nullable=True)
     origen_pedido          = db.Column(db.String(100), nullable=True)  # TEMU, Shopee, etc.
+    # Datos adicionales del pedido (remitente + códigos extra)
+    remitente_nombre       = db.Column(db.String(200), nullable=True)  # sender.name
+    remitente_telefono     = db.Column(db.String(50),  nullable=True)  # sender.phone
+    codigo_cliente         = db.Column(db.String(100), nullable=True)  # customerCode
+    nombre_cliente         = db.Column(db.String(200), nullable=True)  # customerName
+    codigo_despacho        = db.Column(db.String(100), nullable=True)  # terminalDispatchCode
+    pdv_destino            = db.Column(db.String(200), nullable=True)  # dispatchNetworkName
 
     created_at        = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at        = db.Column(

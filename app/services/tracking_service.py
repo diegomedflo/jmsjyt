@@ -146,6 +146,7 @@ def _guardar_detalle(paquete: Paquete, detail) -> None:
     if not detail:
         return
     r = detail.receiver
+    s = detail.sender
     paquete.destinatario_nombre    = r.name
     paquete.destinatario_telefono  = r.phone
     paquete.destinatario_provincia = r.province
@@ -156,6 +157,13 @@ def _guardar_detalle(paquete: Paquete, detail) -> None:
     paquete.tipo_mercancia         = detail.goods_type
     paquete.modo_pago              = detail.payment_mode
     paquete.origen_pedido          = detail.order_source
+    # Campos adicionales — misma llamada API, sin costo extra
+    paquete.remitente_nombre       = s.name
+    paquete.remitente_telefono     = s.phone
+    paquete.codigo_cliente         = detail.customer_code
+    paquete.nombre_cliente         = detail.customer_name
+    paquete.codigo_despacho        = detail.third_code
+    paquete.pdv_destino            = detail.route.dest_pdv
     paquete.detalle_cargado        = True
 
 

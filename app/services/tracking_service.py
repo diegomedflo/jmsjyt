@@ -220,6 +220,13 @@ def refrescar_franquiciado(
         logger.info(f"[{franquiciado.nombre}] Sin paquetes pendientes.")
         return {"consultados": 0, "errores": 0, "entregados": 0, "devueltos": 0}
 
+    import time as _time
+    _t_inicio_fq = _time.monotonic()
+    logger.info(
+        f"[{franquiciado.nombre}] Iniciando tracking — "
+        f"{len(pendientes)} paq pendientes en cola."
+    )
+
     try:
         tracker = JTTracker(cfg)
     except Exception as exc:
@@ -233,14 +240,17 @@ def refrescar_franquiciado(
 
     for pkg in pendientes:
         _pkg_error = False
+        _t0 = _time.monotonic()
         try:
             # Paquetes en tránsito (sin fecha_recojo): solo revisar cada HORAS_TRANSITO_SKIP horas.
-            # Evita llamadas API innecesarias para guías que aún no llegaron al PDV del franquiciado.
             if pkg.fecha_recojo is None:
                 ultima_revision = pkg.updated_at or pkg.created_at
                 if ultima_revision and (_now - ultima_revision) < timedelta(hours=HORAS_TRANSITO_SKIP):
                     stats["omitidos"] += 1
-                    logger.debug(f"[{franquiciado.nombre}] {pkg.waybill_no}: en tránsito, omitido (revisado hace <{HORAS_TRANSITO_SKIP}h)")
+                    logger.debug(
+                        f"[{franquiciado.nombre}] {pkg.waybill_no}: "
+                        f"en tránsito, omitido (revisado hace <{HORAS_TRANSITO_SKIP}h)"
+                    )
                     _done += 1
                     if progress_callback:
                         progress_callback(_done, _total, pkg.waybill_no, "omitido")
@@ -248,7 +258,12 @@ def refrescar_franquiciado(
 
             include_detail = not pkg.detalle_cargado
             result = tracker.track(pkg.waybill_no, include_detail=include_detail)
+            _dur = _time.monotonic() - _t0
             stats["consultados"] += 1
+            logger.info(
+                f"[{franquiciado.nombre}] [{_done+1}/{_total}] "
+                f"{pkg.waybill_no} — API OK en {_dur:.1f}s"
+            )
 
             eventos = result.events or []
             _guardar_historial(pkg, eventos)
@@ -296,11 +311,13 @@ def refrescar_franquiciado(
             logger.debug(f"[{franquiciado.nombre}] {pkg.waybill_no}: OK ({pkg.estado})")
 
         except Exception as exc:
+            _dur = _time.monotonic() - _t0
             db.session.rollback()
             stats["errores"] += 1
             _pkg_error = True
             logger.error(
-                f"[{franquiciado.nombre}] Error al procesar {pkg.waybill_no}: {exc}"
+                f"[{franquiciado.nombre}] [{_done+1}/{_total}] "
+                f"{pkg.waybill_no} — ERROR tras {_dur:.1f}s: {exc}"
             )
 
         finally:
@@ -309,6 +326,13 @@ def refrescar_franquiciado(
                 progress_callback(_done, _total, pkg.waybill_no,
                                   "error" if _pkg_error else "ok")
 
+    _dur_fq = _time.monotonic() - _t_inicio_fq
+    logger.info(
+        f"[{franquiciado.nombre}] Tracking completado en {_dur_fq:.1f}s — "
+        f"consultados={stats['consultados']} omitidos={stats['omitidos']} "
+        f"errores={stats['errores']} entregados={stats['entregados']} "
+        f"devueltos={stats['devueltos']}"
+    )
     return stats
 
 

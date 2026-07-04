@@ -84,7 +84,9 @@ class JTClient:
         reraise=True,
     )
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        import time as _time
         url = API_BASE + path
+        _t0 = _time.monotonic()
         try:
             resp = self._session.post(
                 url,
@@ -94,11 +96,17 @@ class JTClient:
                 proxies=self._current_proxies(),
             )
         except Exception as exc:
+            _dur = _time.monotonic() - _t0
+            logger.warning(f"[api] POST {path} — fallo de conexión tras {_dur:.1f}s: {exc}")
             raise IPBlocked(f"Fallo de conexión en {path}: {exc}") from exc
+
+        _dur = _time.monotonic() - _t0
+        logger.debug(f"[api] POST {path} — HTTP {resp.status_code} en {_dur:.1f}s")
 
         if resp.status_code in (401, 403):
             raise TokenExpired(f"HTTP {resp.status_code} en {path}")
         if resp.status_code in (429, 503):
+            logger.warning(f"[api] POST {path} — posible bloqueo IP ({resp.status_code})")
             raise IPBlocked(f"HTTP {resp.status_code} en {path}")
 
         resp.raise_for_status()

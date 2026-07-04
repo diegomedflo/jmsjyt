@@ -14,13 +14,11 @@ Lógica de umbral (hora Perú redondeada):
 Variables de entorno:
   ADMIN_STATUS_API_KEY    API key de textmebot para el grupo de monitoreo del admin.
   ADMIN_STATUS_GROUP      ID del grupo WA del admin (reporte de salud global).
-  CRON_MAX_RUNTIME_SEG    Segundos máximos antes del watchdog (default 900 = 15 min).
   FLASK_ENV               Entorno Flask (default 'production').
 """
 import logging
 import os
 import sys
-import threading
 from datetime import timedelta
 
 # ── Forzar stdout sin buffer para que Railway muestre logs en tiempo real ──
@@ -34,26 +32,29 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
-    stream=sys.stdout,   # ← stdout para que Railway lo capture siempre
+    stream=sys.stdout,
     force=True,
 )
 
-# ── Watchdog: mató el proceso si supera MAX_RUNTIME_SEG ──
-_MAX_RUNTIME_SEG = int(os.environ.get("CRON_MAX_RUNTIME_SEG", "900"))
+# ── Puente loguru → logging estándar ──────────────────────────────────────
+# jt_scraper usa loguru; sin este puente sus logs no aparecen en Railway.
+try:
+    from loguru import logger as _loguru_logger
+    import logging as _logging
 
+    class _LoguruToStdlib(logging.Handler):
+        def emit(self, record):
+            pass  # evitar ciclo infinito
 
-def _watchdog():
-    logging.critical(
-        f"="*60 + f"\n[WATCHDOG] Cron excedió {_MAX_RUNTIME_SEG}s — "
-        "hay un thread colgado. Forzando os._exit(1).\n" + "="*60
+    _loguru_logger.remove()
+    _loguru_logger.add(
+        lambda msg: print(msg, end="", flush=True),
+        format="{time:YYYY-MM-DD HH:mm:ss} [<level>{level}</level>] {name} — {message}",
+        level="DEBUG",
+        colorize=False,
     )
-    os._exit(1)   # única forma confiable de matar threads colgados
-
-
-_watchdog_timer = threading.Timer(_MAX_RUNTIME_SEG, _watchdog)
-_watchdog_timer.daemon = True
-_watchdog_timer.start()
-logging.info(f"[CRON] Watchdog activo: matará el proceso en {_MAX_RUNTIME_SEG}s si no termina.")
+except ImportError:
+    pass  # loguru no instalado
 
 env = os.environ.get("FLASK_ENV", "production")
 
@@ -82,7 +83,6 @@ with app.app_context():
     logging.info(f"[CRON] INICIO — hora Perú: {ahora:%Y-%m-%d %H:%M}")
     logging.info(f"[CRON] Franquiciados activos: {fq_activos}")
     logging.info(f"[CRON] Hora prevista: {hora:02d}:00  |  Ventana: {cfg.hora_inicio:02d}–00–{cfg.hora_fin:02d}:00")
-    logging.info(f"[CRON] Watchdog: {_MAX_RUNTIME_SEG}s  |  Worker timeout: ver alertas_service")
     logging.info("=" * 60)
 
     # ── Particiones ──────────────────────────────────────
@@ -102,7 +102,6 @@ with app.app_context():
             f"[CRON] Fuera de horario ({cfg.hora_inicio:02d}–00–{cfg.hora_fin:02d}:00). "
             f"Hora actual Perú: {ahora:%H:%M} — sin acción."
         )
-        _watchdog_timer.cancel()
         sys.exit(0)
 
     umbral = cfg.umbral_para_hora(hora)
@@ -148,7 +147,6 @@ with app.app_context():
     # ── Resumen final ───────────────────────────────────
     if error_critico:
         logging.error("[CRON] FALLO — saliendo con código 1")
-        _watchdog_timer.cancel()
         sys.exit(1)
 
     logging.info("=" * 60)
@@ -181,6 +179,5 @@ with app.app_context():
     except Exception as exc:
         logging.warning(f"No se pudo mostrar detalle por franquiciado: {exc}")
 
-    _watchdog_timer.cancel()   # todo OK — cancelar watchdog antes de salir
-    logging.info("[CRON] Watchdog cancelado. Fin normal.")
+    logging.info("[CRON] Fin normal.")
     sys.exit(0 if cron_log.ok else 1)

@@ -126,4 +126,23 @@ with app.app_context():
     print(f"  Estado               : {'OK' if cron_log.ok else 'CON ERRORES'}")
     print("=" * 55)
 
+    # Detalle por franquiciado
+    try:
+        from app.models import CronLogDetalle
+        detalles = CronLogDetalle.query.filter_by(cron_log_id=cron_log.id).all()
+        if detalles:
+            print()
+            print("  Detalle por franquiciado:")
+            for d in detalles:
+                nombre = d.franquiciado.nombre if d.franquiciado else f"id={d.franquiciado_id}"
+                if d.ok:
+                    extra = f"{d.paquetes_consultados} paq, {d.por_vencer} x vencer"
+                    print(f"  ✓  {nombre:<30} {extra}")
+                else:
+                    err = (d.error_msg or "error desconocido")[:60]
+                    print(f"  ✗  {nombre:<30} ERROR: {err}")
+            print("=" * 55)
+    except Exception as exc:
+        logging.warning(f"No se pudo mostrar detalle por franquiciado: {exc}")
+
     sys.exit(0 if cron_log.ok else 1)

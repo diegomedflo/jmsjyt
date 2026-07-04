@@ -48,6 +48,29 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     ITEMS_PER_PAGE = 20
 
+    # ── Pool de conexiones SQLAlchemy ──────────────────────────────────────
+    # Dimensionado para soportar hasta 50 franquiciados con MAX_CRON_WORKERS=4:
+    #   pool_size    = workers(4) + hilo_principal(1) + margen(1) = 6
+    #   max_overflow = 4  →  máximo absoluto = 10 conexiones simultáneas
+    #
+    # pool_pre_ping : ejecuta "SELECT 1" antes de cada checkout para detectar
+    #                 conexiones muertas (Railway cierra idle connections).
+    #                 Añade ~1 ms de overhead pero elimina errores de reconexión.
+    # pool_recycle  : descarta conexiones > 30 min para evitar timeouts del lado
+    #                 del servidor (PostgreSQL idle_in_transaction_session_timeout).
+    # pool_timeout  : si el pool está agotado, espera max 30 s antes de lanzar
+    #                 sqlalchemy.exc.TimeoutError (default SQLAlchemy = 30).
+    # connect_timeout (psycopg2): TCP timeout al establecer la conexión inicial;
+    #                 sin esto un host inalcanzable cuelga el proceso indefinidamente.
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_size":     6,
+        "max_overflow":  4,
+        "pool_timeout":  30,
+        "pool_pre_ping": True,
+        "pool_recycle":  1800,
+        "connect_args":  {"connect_timeout": 10},
+    }
+
     # Google Drive (backup de Excels importados)
     GOOGLE_DRIVE_FOLDER_ID  = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "1Uq8Po3FBcI37wB1QTmFyZi4NjQsDcHSM")
     DRIVE_TOKEN_PICKLE_PATH = os.environ.get("DRIVE_TOKEN_PICKLE_PATH")

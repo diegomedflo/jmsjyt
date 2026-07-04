@@ -121,6 +121,20 @@
         <span class="dl-label">Creado</span>
         <span class="dl-value">{{ fq.created_at.strftime('%d/%m/%Y') }}</span>
 
+        <span class="dl-label">Últ. /importar</span>
+        <span class="dl-value" style="font-size:0.8rem;">
+          {% if last_wa_import_peru %}
+            {{ last_wa_import_peru.strftime('%d/%m/%Y %H:%M') }} <span style="color:var(--text-secondary);">(hora Perú)</span>
+          {% else %}—{% endif %}
+        </span>
+
+        <span class="dl-label">Últ. /estado</span>
+        <span class="dl-value" style="font-size:0.8rem;">
+          {% if last_wa_estado_peru %}
+            {{ last_wa_estado_peru.strftime('%d/%m/%Y %H:%M') }} <span style="color:var(--text-secondary);">(hora Perú)</span>
+          {% else %}—{% endif %}
+        </span>
+
         {% if fq.notas %}
         <span class="dl-label">Notas</span>
         <span class="dl-value">{{ fq.notas }}</span>
@@ -240,6 +254,68 @@
       Ejecutar <strong>Paso 1</strong> (importar códigos) → luego <strong>Paso 2</strong> (llenar tracking).
       El cron automático hace ambas cosas cada hora, pero puedes forzarlo aquí a demanda.
     </p>
+  </div>
+</div>
+
+<!-- ── Comandos WhatsApp ──────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:1.25rem;">
+  <div class="card-header">
+    <span class="card-title"><i class="bi bi-whatsapp"></i> Comandos WhatsApp</span>
+    <span style="font-size:0.78rem;color:var(--text-secondary);">Acciones manuales al grupo del franquiciado (sin límite de frecuencia)</span>
+  </div>
+  <div class="card-body" style="padding:1rem;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+
+      <!-- /estado -->
+      <div style="border:1px solid var(--card-border);border-radius:10px;padding:1rem;display:flex;flex-direction:column;gap:0.65rem;">
+        <div style="font-weight:600;font-size:0.88rem;display:flex;align-items:center;gap:0.4rem;color:#25D366;">
+          <i class="bi bi-bar-chart-line"></i> Enviar resumen de estado
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;line-height:1.55;flex:1;">
+          Envía al grupo de WhatsApp el conteo actual de paquetes: en tránsito, pendientes,
+          devueltos y entregados. Equivale al comando <code>/estado</code>.
+        </p>
+        {% if last_wa_estado_peru %}
+        <div style="font-size:0.74rem;color:var(--text-secondary);">
+          <i class="bi bi-clock"></i> Último envío: {{ last_wa_estado_peru.strftime('%d/%m/%Y %H:%M') }} (hora Perú)
+        </div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin.wa_estado', fq_id=fq.id) }}"
+              style="margin:0;"
+              onsubmit="showLoader('Enviando resumen de estado…', 'Consultando BD y enviando mensaje al grupo WhatsApp.')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="btn btn-primary" style="width:100%;font-size:0.83rem;background:#25D366;border-color:#25D366;">
+            <i class="bi bi-send"></i> Enviar /estado al grupo
+          </button>
+        </form>
+      </div>
+
+      <!-- /importar -->
+      <div style="border:1px solid var(--card-border);border-radius:10px;padding:1rem;display:flex;flex-direction:column;gap:0.65rem;">
+        <div style="font-weight:600;font-size:0.88rem;display:flex;align-items:center;gap:0.4rem;color:#25D366;">
+          <i class="bi bi-cloud-download"></i> Importar desde JMS + notificar
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;line-height:1.55;flex:1;">
+          Descarga los paquetes asignados desde JMS (últimos {{ cfg.sync_dias_atras }} días),
+          los importa a la BD y notifica el resultado al grupo WhatsApp.
+          Equivale al comando <code>/importar</code> sin límite diario.
+        </p>
+        {% if last_wa_import_peru %}
+        <div style="font-size:0.74rem;color:var(--text-secondary);">
+          <i class="bi bi-clock"></i> Último import: {{ last_wa_import_peru.strftime('%d/%m/%Y %H:%M') }} (hora Perú)
+        </div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin.wa_importar', fq_id=fq.id) }}"
+              style="margin:0;"
+              onsubmit="showLoader('Importando desde JMS…', 'Resolviendo captcha, paginando la API e importando paquetes. Tarda ~60 s.')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="btn btn-primary" style="width:100%;font-size:0.83rem;background:#25D366;border-color:#25D366;">
+            <i class="bi bi-cloud-download"></i> Ejecutar /importar + notificar
+          </button>
+        </form>
+      </div>
+
+    </div>
   </div>
 </div>
 

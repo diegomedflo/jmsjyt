@@ -62,8 +62,8 @@ def _send_reply(franquiciado: Franquiciado, text: str) -> None:
 
 # ── Comando /estado ───────────────────────────────────────────────────────────
 
-def _cmd_estado(franquiciado: Franquiciado) -> None:
-    """Responde con el resumen de estados de paquetes del franquiciado."""
+def _build_estado_message(franquiciado: Franquiciado, now_peru: datetime) -> str:
+    """Construye el mensaje de estado de paquetes del franquiciado."""
     fid = franquiciado.id
 
     # En tránsito: pendiente SIN fecha_recojo (aún no llegó al PDV desde Lima)
@@ -82,11 +82,10 @@ def _cmd_estado(franquiciado: Franquiciado) -> None:
         .count()
     )
 
-    devueltos = Paquete.query.filter_by(franquiciado_id=fid, estado="devuelto").count()
+    devueltos  = Paquete.query.filter_by(franquiciado_id=fid, estado="devuelto").count()
     entregados = Paquete.query.filter_by(franquiciado_id=fid, estado="entregado").count()
 
-    now_peru = _hora_peru()
-    msg = (
+    return (
         f"📦 *Estado de paquetes — {franquiciado.nombre}*\n"
         f"_(Actualizado: {now_peru.strftime('%d/%m/%Y %H:%M')} hora Perú)_\n\n"
         f"🚚 En tránsito (Lima → Cedis): *{en_transito}*\n"
@@ -95,6 +94,17 @@ def _cmd_estado(franquiciado: Franquiciado) -> None:
         f"✅ Entregados: *{entregados}*\n\n"
         f"_Nuestro sistema actualiza estados cada hora, de 8am a 11pm (hora Perú)._"
     )
+
+
+def _cmd_estado(franquiciado: Franquiciado) -> None:
+    """Responde con el resumen de estados de paquetes del franquiciado."""
+    now_peru = _hora_peru()
+    msg = _build_estado_message(franquiciado, now_peru)
+
+    # Guardar timestamp de última consulta (en UTC)
+    franquiciado.last_wa_estado_at = datetime.utcnow()
+    db.session.commit()
+
     _send_reply(franquiciado, msg)
 
 
@@ -206,7 +216,7 @@ def _cmd_importar(franquiciado: Franquiciado) -> None:
 
 # ── Endpoint webhook ──────────────────────────────────────────────────────────
 
-@whatsapp_bp.route("/whatsapp", methods=["GET", "POST"])
+@whatsapp_bp.route("/whatsapp", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
 @csrf.exempt
 def webhook():
     """Recibe mensajes entrantes de textmebot y despacha los comandos /importar y /estado.

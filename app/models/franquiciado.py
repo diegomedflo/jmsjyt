@@ -34,6 +34,7 @@ class Franquiciado(db.Model):
     horas_primera_gestion = db.Column(db.Integer, nullable=False, default=48)   # 48h para primera gestión
     # ── Comandos WhatsApp ─────────────────────────────────────────────────
     last_wa_import_at  = db.Column(db.DateTime, nullable=True)   # rate-limit /importar (1/día)
+    last_wa_estado_at  = db.Column(db.DateTime, nullable=True)   # última consulta /estado (UTC)
     created_at         = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at         = db.Column(
         db.DateTime, nullable=False,

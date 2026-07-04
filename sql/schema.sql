@@ -246,9 +246,10 @@ ALTER TABLE franquiciados
     ADD COLUMN IF NOT EXISTS horas_total_entrega   INTEGER NOT NULL DEFAULT 120,
     ADD COLUMN IF NOT EXISTS horas_primera_gestion INTEGER NOT NULL DEFAULT 48;
 
--- v2.3: timestamp para rate-limit del comando /importar por WhatsApp
+-- v2.3: timestamps para rate-limit y auditoría de comandos WhatsApp
 ALTER TABLE franquiciados
-    ADD COLUMN IF NOT EXISTS last_wa_import_at TIMESTAMPTZ;
+    ADD COLUMN IF NOT EXISTS last_wa_import_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS last_wa_estado_at  TIMESTAMPTZ;
 
 -- v2.4: columnas de detalle del paquete (datos estáticos del pedido)
 ALTER TABLE paquetes

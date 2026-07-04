@@ -81,7 +81,9 @@ def franquiciados_nuevo():
 @admin_bp.route("/franquiciados/<int:fq_id>")
 @login_required
 def franquiciados_detalle(fq_id: int):
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
+    PERU_UTC_OFFSET = timedelta(hours=5)
+
     fq      = db.get_or_404(Franquiciado, fq_id)
     page    = request.args.get("page", 1, type=int)
     estado  = request.args.get("estado", "")
@@ -93,6 +95,15 @@ def franquiciados_detalle(fq_id: int):
     alertas    = AlertaLog.query.filter_by(franquiciado_id=fq_id).order_by(
         AlertaLog.enviado_at.desc()
     ).limit(20).all()
+
+    def _to_peru(dt):
+        """Convierte datetime UTC a hora Perú (UTC-5). Devuelve None si dt es None."""
+        if dt is None:
+            return None
+        return dt - PERU_UTC_OFFSET
+
+    cfg = Configuracion.get()
+
     return render_template(
         "admin/franquiciados/detalle.html",
         fq=fq,
@@ -101,6 +112,9 @@ def franquiciados_detalle(fq_id: int):
         estado_filtro=estado,
         alertas=alertas,
         now=datetime.now(timezone.utc),
+        last_wa_import_peru=_to_peru(fq.last_wa_import_at),
+        last_wa_estado_peru=_to_peru(fq.last_wa_estado_at),
+        cfg=cfg,
     )
 
 
@@ -299,6 +313,99 @@ def paquetes_sincronizar(fq_id: int):
     except Exception as exc:
         current_app.logger.exception(f"Error en sincronización franq={fq_id}")
         flash(f"Error en sincronización: {exc}", "danger")
+
+    return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+
+# ── Comandos WhatsApp desde el panel admin ───────────────────────────────────
+
+@admin_bp.route("/franquiciados/<int:fq_id>/wa/estado", methods=["POST"])
+@login_required
+def wa_estado(fq_id: int):
+    """Envía el resumen de estados de paquetes al grupo WhatsApp del franquiciado."""
+    from datetime import datetime, timedelta
+    from app.blueprints.whatsapp.webhook import _build_estado_message
+    from app.services.whatsapp_service import enviar_whatsapp
+
+    PERU_UTC_OFFSET = timedelta(hours=5)
+    fq = db.get_or_404(Franquiciado, fq_id)
+
+    now_utc  = datetime.utcnow()
+    now_peru = now_utc if current_app.debug else (now_utc - PERU_UTC_OFFSET)
+    msg = _build_estado_message(fq, now_peru)
+
+    ok, resp = enviar_whatsapp(fq.textmebot_api_key, fq.wa_grupo_id, msg)
+
+    fq.last_wa_estado_at = now_utc
+    db.session.commit()
+
+    if ok:
+        flash("Resumen de estado enviado al grupo WhatsApp correctamente.", "success")
+    else:
+        flash(f"Error al enviar a WhatsApp: {resp[:200]}", "danger")
+
+    return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+
+@admin_bp.route("/franquiciados/<int:fq_id>/wa/importar", methods=["POST"])
+@login_required
+def wa_importar(fq_id: int):
+    """Importa paquetes desde JMS y envía el resultado al grupo WhatsApp.
+    Sin rate limit — acceso exclusivo para el admin."""
+    from datetime import date, datetime, timedelta
+    from jt_scraper.outlet_monitor import OutletMonitor
+    from jt_scraper.instance_config import JTInstanceConfig
+    from app.services.importar_service import import_waybills
+    from app.services.whatsapp_service import enviar_whatsapp
+    from app.models import Configuracion
+
+    fq  = db.get_or_404(Franquiciado, fq_id)
+    cfg = Configuracion.get()
+
+    instance_cfg = JTInstanceConfig(
+        jt_user=fq.jt_user,
+        jt_pass=fq.jt_pass,
+        token_getter=fq.get_token_cache,
+        token_setter=lambda v: (fq.set_token_cache(v), db.session.commit()),
+    )
+
+    try:
+        monitor    = OutletMonitor(instance_cfg)
+        start_date = (date.today() - timedelta(days=cfg.sync_dias_atras)).isoformat()
+        end_date   = date.today().isoformat()
+        waybills   = monitor.fetch_waybills(start_date, end_date, time_type=cfg.sync_time_type)
+
+        if not waybills:
+            msg = "⚠️ No se encontraron paquetes en JMS para el rango de fechas consultado."
+            enviar_whatsapp(fq.textmebot_api_key, fq.wa_grupo_id, msg)
+            flash("JMS no devolvió paquetes. Se notificó al grupo.", "warning")
+        else:
+            result = import_waybills(
+                franquiciado_id=fq_id,
+                waybills=waybills,
+                filename=f"admin_wa_importar_{end_date}",
+                import_mode="wa_admin",
+            )
+            wa_msg = (
+                f"✅ *Importación completada (admin)*\n"
+                f"• Paquetes nuevos: *{result['nuevos']}*\n"
+                f"• Duplicados (ya existían): *{result['duplicados']}*\n"
+                f"• Total procesados: *{result['total']}*\n\n"
+                f"_Usa /estado para ver el resumen actualizado._"
+            )
+            enviar_whatsapp(fq.textmebot_api_key, fq.wa_grupo_id, wa_msg)
+            flash(
+                f"Importación completada: {result['nuevos']} nuevo(s), "
+                f"{result['duplicados']} duplicado(s). Resultado enviado al grupo WA.",
+                "success",
+            )
+
+        fq.last_wa_import_at = datetime.utcnow()
+        db.session.commit()
+
+    except Exception as exc:
+        current_app.logger.exception(f"[admin] Error en wa_importar franq={fq_id}")
+        flash(f"Error en importación: {exc}", "danger")
 
     return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
 

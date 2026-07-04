@@ -429,10 +429,6 @@ def webhook():
         print(f"[WA_WEBHOOK] ABORTANDO — ningún franquiciado activo con group_jid={group_jid!r} ni sender={sender_phone!r}", flush=True)
         return "ok", 200
     print(f"[WA_WEBHOOK] Franquiciado encontrado: id={franquiciado.id} nombre={franquiciado.nombre!r}", flush=True)
-    franquiciado = _find_franquiciado(group_id)
-    if not franquiciado:
-        logger.debug("[wa_webhook] group_id %r no registrado", group_id)
-    print(f"[WA_WEBHOOK] Franquiciado encontrado: id={franquiciado.id} nombre={franquiciado.nombre!r}", flush=True)
 
     # ── Mensaje sin "/" → posible respuesta al modo /agregar ─────────────
     if not message.startswith("/"):

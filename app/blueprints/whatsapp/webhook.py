@@ -398,18 +398,16 @@ def webhook():
     if not data:
         data = request.args.to_dict()
 
-    # textmebot envía: {"from": "PHONE", "to": "MYPHONE", "message": "TEXT", ...}
-    # El campo "from" es el número del remitente (quien escribe el comando).
-    # Fallbacks para otros sistemas que puedan usar este webhook.
-    group_id = (
-        data.get("from")       # textmebot — número del remitente
-        or data.get("phone")
-        or data.get("group")
-        or data.get("groupId")
-        or data.get("recipient")
-        or ""
-    ).strip()
+    # textmebot payload: {"from": "51968547897", "to": "120363...@g.us", "message": "..."}
+    # "to"   = JID del grupo donde se escribió (termina en @g.us para grupos)
+    # "from" = teléfono individual del remitente
+    sender_phone = data.get("from", "").strip()
+    group_jid    = data.get("to",   "").strip()
 
+    # El destino de la respuesta es el grupo (to) si viene de un grupo, sino el sender
+    reply_to = group_jid or sender_phone
+
+    # El mensaje a ejecutar
     message = (
         data.get("message")
         or data.get("text")
@@ -417,25 +415,28 @@ def webhook():
         or ""
     ).strip()
 
-    logger.debug("[wa_webhook] group=%r msg=%r", group_id, message[:60] if message else "")
-    print(f"[WA_WEBHOOK] method={request.method} group={group_id!r} message={message[:80]!r}", flush=True)
-    print(f"[WA_WEBHOOK] raw data={dict(data)}", flush=True)
+    print(f"[WA_WEBHOOK] method={request.method} sender={sender_phone!r} group_jid={group_jid!r} reply_to={reply_to!r} message={message[:80]!r}", flush=True)
 
-    if not group_id or not message:
-        print(f"[WA_WEBHOOK] ABORTANDO — group_id o message vacíos. group={group_id!r} msg={message!r}", flush=True)
+    if not reply_to or not message:
+        print(f"[WA_WEBHOOK] ABORTANDO — reply_to o message vacíos.", flush=True)
         return "ok", 200
 
-    # ── Resolver franquiciado (grupo principal o secundario) ──────────────
+    # ── Resolver franquiciado: busca primero por group JID, luego por phone ──
+    franquiciado = _find_franquiciado(group_jid) if group_jid else None
+    if not franquiciado and sender_phone:
+        franquiciado = _find_franquiciado(sender_phone)
+    if not franquiciado:
+        print(f"[WA_WEBHOOK] ABORTANDO — ningún franquiciado activo con group_jid={group_jid!r} ni sender={sender_phone!r}", flush=True)
+        return "ok", 200
+    print(f"[WA_WEBHOOK] Franquiciado encontrado: id={franquiciado.id} nombre={franquiciado.nombre!r}", flush=True)
     franquiciado = _find_franquiciado(group_id)
     if not franquiciado:
         logger.debug("[wa_webhook] group_id %r no registrado", group_id)
-        print(f"[WA_WEBHOOK] ABORTANDO — group_id {group_id!r} no corresponde a ningún franquiciado activo", flush=True)
-        return "ok", 200
     print(f"[WA_WEBHOOK] Franquiciado encontrado: id={franquiciado.id} nombre={franquiciado.nombre!r}", flush=True)
 
     # ── Mensaje sin "/" → posible respuesta al modo /agregar ─────────────
     if not message.startswith("/"):
-        _maybe_recibir_codigos(franquiciado, group_id, message)
+        _maybe_recibir_codigos(franquiciado, reply_to, message)
         return "ok", 200
 
     # ── Despachar comando ─────────────────────────────────────────────────
@@ -443,19 +444,19 @@ def webhook():
     print(f"[WA_WEBHOOK] Comando detectado: {cmd!r}", flush=True)
 
     if cmd == "/agregar":
-        _cmd_agregar(franquiciado, group_id)
+        _cmd_agregar(franquiciado, reply_to)
     elif cmd == "/importar":
         # Cualquier otro comando cancela el modo espera del /agregar
         if franquiciado.wa_esperando_codigos_at:
             franquiciado.wa_esperando_codigos_at = None
             db.session.commit()
-        _cmd_importar(franquiciado, group_id)
+        _cmd_importar(franquiciado, reply_to)
     elif cmd == "/estado":
         print(f"[WA_WEBHOOK] Ejecutando /estado para franquiciado id={franquiciado.id}", flush=True)
         if franquiciado.wa_esperando_codigos_at:
             franquiciado.wa_esperando_codigos_at = None
             db.session.commit()
-        _cmd_estado(franquiciado, group_id)
+        _cmd_estado(franquiciado, reply_to)
         print(f"[WA_WEBHOOK] /estado completado", flush=True)
     # Ignorar silenciosamente cualquier otro comando
 

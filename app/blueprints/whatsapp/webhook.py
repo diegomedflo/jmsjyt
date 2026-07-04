@@ -1,8 +1,18 @@
 """Webhook para comandos de WhatsApp recibidos desde textmebot.
 
-Textmebot envía un GET (o POST) a esta URL cuando llega un mensaje al grupo.
-Parámetros típicos:
-  GET /webhook/whatsapp?token=SECRET&phone=GROUP_JID&message=/importar
+Textmebot envía un POST a esta URL con JSON cuando llega un mensaje al número.
+Payload de textmebot:
+  {
+    "type": "text",
+    "from": "549191919191",   ← número del remitente
+    "from_name": "Joan",
+    "to":   "54134123123",    ← tu número textmebot
+    "file": "null",
+    "message": "/estado"
+  }
+
+La configuración del webhook en textmebot se hace UNA VEZ por API key:
+  GET https://api.textmebot.com/webhook.php?apikey=TU_KEY&webhookurl=https://tuapp.com/webhook/whatsapp
 
 Comandos soportados:
   /importar  — Importa paquetes desde JMS a la BD (límite: 1 vez al día).
@@ -10,8 +20,8 @@ Comandos soportados:
   /agregar   — Activa espera de 2 min; el siguiente mensaje se trata como
                lista de códigos a agregar (separados por espacios o saltos).
 
-Un franquiciado tiene hasta 2 grupos vinculados (wa_grupo_id y
-wa_status_grupo_id); cualquiera de los dos acepta los comandos.
+El franquiciado se identifica por el campo "from" del payload, que se compara
+contra wa_grupo_id y wa_status_grupo_id en la BD.
 """
 from __future__ import annotations
 
@@ -388,9 +398,12 @@ def webhook():
     if not data:
         data = request.args.to_dict()
 
-    # textmebot envía el ID de grupo en el campo "phone" para mensajes de grupo
+    # textmebot envía: {"from": "PHONE", "to": "MYPHONE", "message": "TEXT", ...}
+    # El campo "from" es el número del remitente (quien escribe el comando).
+    # Fallbacks para otros sistemas que puedan usar este webhook.
     group_id = (
-        data.get("phone")
+        data.get("from")       # textmebot — número del remitente
+        or data.get("phone")
         or data.get("group")
         or data.get("groupId")
         or data.get("recipient")

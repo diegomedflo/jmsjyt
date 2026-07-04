@@ -37,6 +37,10 @@ _TIPOS_DEVOLUCION = {
 # Corrección UTC → Perú en producción (el servidor corre en UTC).
 PERU_UTC_OFFSET = timedelta(hours=5)
 
+# Horas mínimas entre revisiones para paquetes en tránsito (sin fecha_recojo).
+# Reduce llamadas API innecesarias para paquetes que aún no llegaron al PDV.
+HORAS_TRANSITO_SKIP = 4
+
 # --- Detección de fecha de recojo ------------------------------------------
 # Evento objetivo: "Descarga TR1/2" cuando el paquete llega al PDV desde el CEDIS.
 #
@@ -222,13 +226,26 @@ def refrescar_franquiciado(
         logger.error(f"[{franquiciado.nombre}] No se pudo inicializar JTTracker: {exc}")
         return {"consultados": 0, "errores": len(pendientes), "entregados": 0, "devueltos": 0}
 
-    stats = {"consultados": 0, "errores": 0, "entregados": 0, "devueltos": 0}
+    stats = {"consultados": 0, "errores": 0, "entregados": 0, "devueltos": 0, "omitidos": 0}
     _total = len(pendientes)
     _done  = 0
+    _now   = datetime.utcnow()
 
     for pkg in pendientes:
         _pkg_error = False
         try:
+            # Paquetes en tránsito (sin fecha_recojo): solo revisar cada HORAS_TRANSITO_SKIP horas.
+            # Evita llamadas API innecesarias para guías que aún no llegaron al PDV del franquiciado.
+            if pkg.fecha_recojo is None:
+                ultima_revision = pkg.updated_at or pkg.created_at
+                if ultima_revision and (_now - ultima_revision) < timedelta(hours=HORAS_TRANSITO_SKIP):
+                    stats["omitidos"] += 1
+                    logger.debug(f"[{franquiciado.nombre}] {pkg.waybill_no}: en tránsito, omitido (revisado hace <{HORAS_TRANSITO_SKIP}h)")
+                    _done += 1
+                    if progress_callback:
+                        progress_callback(_done, _total, pkg.waybill_no, "omitido")
+                    continue
+
             include_detail = not pkg.detalle_cargado
             result = tracker.track(pkg.waybill_no, include_detail=include_detail)
             stats["consultados"] += 1

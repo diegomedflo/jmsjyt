@@ -644,7 +644,11 @@ def paquetes_tracking_stream(fq_id: int):
     )
 
     def _generate():
+        from datetime import datetime as _dt
         if not batch:
+            # Todos los lotes procesados — registrar timestamp de última actualización
+            fq.last_tracking_at = _dt.utcnow()
+            db.session.commit()
             yield f"data: {json.dumps({'type': 'all_done'})}\n\n"
             return
 

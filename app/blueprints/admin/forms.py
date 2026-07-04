@@ -65,5 +65,5 @@ class ConfiguracionForm(FlaskForm):
     hora_fin              = IntegerField("Hora fin (Perú)",                validators=[DataRequired(), NumberRange(min=0, max=23)])
     delay_whatsapp        = FloatField("Delay entre envíos WA (seg)",       validators=[DataRequired(), NumberRange(min=0, max=60)])
     sync_dias_atras       = IntegerField("Días atrás para sincronizar",     validators=[DataRequired(), NumberRange(min=1, max=365)])
-    sync_time_type        = IntegerField("Tipo de fecha (timeType)",        validators=[DataRequired(), NumberRange(min=0, max=1)])
+    sync_time_type        = IntegerField("Tipo de fecha (timeType)",        validators=[DataRequired(), NumberRange(min=0, max=3)])
 

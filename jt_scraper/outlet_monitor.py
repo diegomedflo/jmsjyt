@@ -79,8 +79,10 @@ class OutletMonitor:
         Args:
             start_date: "YYYY-MM-DD" — por defecto: hace 30 días.
             end_date:   "YYYY-MM-DD" — por defecto: hoy.
-            time_type:  1 = fecha de generación de datos (default portal),
-                        0 = fecha de creación del pedido.
+            time_type:  0 = fecha de creación del pedido (sin datos en rango típico),
+                        1 = fecha de generación de datos (default portal),
+                        2 = fecha de llegada al nodo (confirmado 2026-07-04),
+                        3 = dimensión adicional desconocida.
 
         Returns:
             Lista de strings con los números de guía (ej. "JPE000008162174").

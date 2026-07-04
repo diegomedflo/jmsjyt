@@ -958,6 +958,9 @@ document.querySelectorAll('.btn-jms-history').forEach(btn => {
 
               labelHtml = `<span class="badge badge-inline ${badgeCls}" style="margin-left:0.5rem;font-size:0.6rem;">${ev.label}</span>`;
             }
+            if (ev.es_gestion) {
+              labelHtml += `<span class="badge badge-inline badge-blue" style="margin-left:0.4rem;font-size:0.6rem;background:#DBEAFE;color:#1E40AF;">Gestión</span>`;
+            }
 
             item.innerHTML = `
               <div class="tracking-icon"></div>

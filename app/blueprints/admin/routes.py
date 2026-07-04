@@ -580,7 +580,7 @@ def paquete_tracking_historial(pkg_id: int):
     historial = pkg.historial.all()  # order_by n_orden (oldest first)
 
     from app.services.tracking_service import (
-        _es_recojo_almacen, TIPO_EXCEPCION, TIPO_ENTREGADO, _es_devolucion_jyt
+        _es_recojo_almacen, TIPO_EXCEPCION, TIPO_ENTREGADO, _es_devolucion_jyt, _es_gestion
     )
 
     recojo_id = None
@@ -620,6 +620,12 @@ def paquete_tracking_historial(pkg_id: int):
             h_label = "Devuelto"
             h_class = "devuelto"
 
+        # Check if it is a gestion (management)
+        es_gest = False
+        if pkg.fecha_recojo and ev.hora_escaneo and ev.hora_escaneo > pkg.fecha_recojo:
+            if _es_gestion(ev.tipo_escaneo or "", ev.descripcion or ""):
+                es_gest = True
+
         events_data.append({
             "id": ev.id,
             "n_orden": ev.n_orden,
@@ -628,7 +634,8 @@ def paquete_tracking_historial(pkg_id: int):
             "descripcion": ev.descripcion,
             "interpretacion": ev.interpretacion,
             "label": h_label,
-            "class": h_class
+            "class": h_class,
+            "es_gestion": es_gest
         })
 
     return {

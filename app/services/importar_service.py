@@ -40,7 +40,7 @@ def _normalize(s: str) -> str:
     """Quita tildes, pasa a minúsculas, elimina espacios y puntuación."""
     s = unicodedata.normalize("NFD", str(s).lower())
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
-    for ch in (" ", ".", "_", "-", "#", "°", "º", "n"):
+    for ch in (" ", ".", "_", "-", "#", "°", "º"):
         s = s.replace(ch, "")
     return s
 
@@ -57,15 +57,22 @@ def parse_excel_waybills(file_bytes: bytes) -> list[str]:
     """
     from openpyxl import load_workbook
 
-    wb = load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+    wb = load_workbook(io.BytesIO(file_bytes), data_only=True)
     ws = wb.active
+
+    # ── Leer TODAS las filas de una sola vez ──────────────────────────────
+    # ReadOnlyWorksheet solo puede iterarse una vez (stream XML). Si se llama
+    # iter_rows() dos veces, el segundo retorna vacío. Por eso leemos todo
+    # en memoria primero y luego procesamos la lista.
+    all_rows: list[tuple] = list(ws.iter_rows(values_only=True))
+    wb.close()
 
     # ── Buscar la fila de encabezados (primeras 10 filas) ──────────────────
     header_row_idx: Optional[int] = None
     guia_col_idx:   Optional[int] = None
     found_headers:  list[str]     = []
 
-    for row_idx, row in enumerate(ws.iter_rows(max_row=10, values_only=True)):
+    for row_idx, row in enumerate(all_rows[:10]):
         found_headers = [str(c) for c in row if c is not None]
         for col_idx, cell_val in enumerate(row):
             if cell_val is None:
@@ -80,7 +87,6 @@ def parse_excel_waybills(file_bytes: bytes) -> list[str]:
             break
 
     if guia_col_idx is None:
-        wb.close()
         raise ValueError(
             f"No se encontró la columna 'Número de Guía' en el Excel. "
             f"Columnas encontradas en primera fila: {found_headers[:10]}"
@@ -88,7 +94,7 @@ def parse_excel_waybills(file_bytes: bytes) -> list[str]:
 
     # ── Extraer waybills desde la fila siguiente al encabezado ────────────
     waybills: list[str] = []
-    for row in ws.iter_rows(min_row=header_row_idx + 2, values_only=True):
+    for row in all_rows[header_row_idx + 1:]:
         if not row:
             continue
         val = row[guia_col_idx] if guia_col_idx < len(row) else None
@@ -97,8 +103,6 @@ def parse_excel_waybills(file_bytes: bytes) -> list[str]:
         wb_no = str(val).strip()
         if wb_no and wb_no.lower() not in ("none", "nan", ""):
             waybills.append(wb_no)
-
-    wb.close()
     logger.info(f"[importar] {len(waybills)} waybills extraídos del Excel")
     return waybills
 

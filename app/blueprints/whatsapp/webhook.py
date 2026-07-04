@@ -134,22 +134,38 @@ def _build_estado_message(franquiciado: Franquiciado, now_peru: datetime) -> str
 
     return (
         f"📦 *Estado de paquetes — {franquiciado.nombre}*\n"
-        f"_(Actualizado: {now_peru.strftime('%d/%m/%Y %H:%M')} hora Perú)_\n\n"
+        f"_(Actualizado: {now_peru.strftime('%d/%m/%Y %H:%M')})_\n\n"
         f"⏳ Pendientes: *{pendientes}*\n"
         f"↩️ Devueltos: *{devueltos}*\n"
         f"✅ Entregados: *{entregados}*\n"
         f"📊 Total: *{total}*\n\n"
-        f"_Nuestro sistema actualiza estados cada hora, de 8am a 11pm (hora Perú)._"
+        f"_Estados actualizados cada hora, de 8am a 11pm._"
     )
 
 
 def _cmd_estado(franquiciado: Franquiciado, group_id: str) -> None:
     """Responde con el resumen de estados de paquetes del franquiciado."""
+    print(f"[WA_ESTADO] Construyendo mensaje para franquiciado id={franquiciado.id} group={group_id!r}", flush=True)
     now_peru = _hora_peru()
-    msg = _build_estado_message(franquiciado, now_peru)
+    try:
+        msg = _build_estado_message(franquiciado, now_peru)
+        print(f"[WA_ESTADO] Mensaje construido OK, enviando...", flush=True)
+    except Exception as e:
+        print(f"[WA_ESTADO] ERROR al construir mensaje: {e}", flush=True)
+        raise
     franquiciado.last_wa_estado_at = datetime.utcnow()
     db.session.commit()
-    _send_reply(franquiciado, msg, group_id)
+    ok, resp = enviar_whatsapp(
+        api_key=franquiciado.textmebot_api_key,
+        recipient=group_id,
+        text=msg,
+    )
+    print(f"[WA_ESTADO] enviar_whatsapp -> ok={ok} resp={resp[:120] if resp else None}", flush=True)
+    if not ok:
+        logger.warning(
+            "[wa_cmd] Fallo al enviar respuesta franq=%s group=%s: %s",
+            franquiciado.id, group_id, resp[:120],
+        )
 
 
 # ── Comando /importar — lógica en hilo de fondo ───────────────────────────────
@@ -355,10 +371,12 @@ def webhook():
     """
     # ── Validar token de seguridad ────────────────────────────────────────
     expected_token = os.environ.get("WA_WEBHOOK_TOKEN", "").strip()
+    print(f"[WA_WEBHOOK] Petición recibida — método={request.method} token_requerido={bool(expected_token)}", flush=True)
     if expected_token:
         incoming_token = request.args.get("token", "").strip()
         if incoming_token != expected_token:
             logger.warning("[wa_webhook] Token inválido desde %s", request.remote_addr)
+            print(f"[WA_WEBHOOK] ABORTANDO — token inválido: recibido={incoming_token!r}", flush=True)
             return "Unauthorized", 401
 
     # ── Extraer datos del mensaje (acepta JSON, form y query params) ──────
@@ -387,15 +405,20 @@ def webhook():
     ).strip()
 
     logger.debug("[wa_webhook] group=%r msg=%r", group_id, message[:60] if message else "")
+    print(f"[WA_WEBHOOK] method={request.method} group={group_id!r} message={message[:80]!r}", flush=True)
+    print(f"[WA_WEBHOOK] raw data={dict(data)}", flush=True)
 
     if not group_id or not message:
+        print(f"[WA_WEBHOOK] ABORTANDO — group_id o message vacíos. group={group_id!r} msg={message!r}", flush=True)
         return "ok", 200
 
     # ── Resolver franquiciado (grupo principal o secundario) ──────────────
     franquiciado = _find_franquiciado(group_id)
     if not franquiciado:
         logger.debug("[wa_webhook] group_id %r no registrado", group_id)
+        print(f"[WA_WEBHOOK] ABORTANDO — group_id {group_id!r} no corresponde a ningún franquiciado activo", flush=True)
         return "ok", 200
+    print(f"[WA_WEBHOOK] Franquiciado encontrado: id={franquiciado.id} nombre={franquiciado.nombre!r}", flush=True)
 
     # ── Mensaje sin "/" → posible respuesta al modo /agregar ─────────────
     if not message.startswith("/"):
@@ -404,6 +427,7 @@ def webhook():
 
     # ── Despachar comando ─────────────────────────────────────────────────
     cmd = message.split()[0].lower()
+    print(f"[WA_WEBHOOK] Comando detectado: {cmd!r}", flush=True)
 
     if cmd == "/agregar":
         _cmd_agregar(franquiciado, group_id)
@@ -414,10 +438,12 @@ def webhook():
             db.session.commit()
         _cmd_importar(franquiciado, group_id)
     elif cmd == "/estado":
+        print(f"[WA_WEBHOOK] Ejecutando /estado para franquiciado id={franquiciado.id}", flush=True)
         if franquiciado.wa_esperando_codigos_at:
             franquiciado.wa_esperando_codigos_at = None
             db.session.commit()
         _cmd_estado(franquiciado, group_id)
+        print(f"[WA_WEBHOOK] /estado completado", flush=True)
     # Ignorar silenciosamente cualquier otro comando
 
     return "ok", 200

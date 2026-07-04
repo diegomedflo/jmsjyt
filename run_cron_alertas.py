@@ -19,7 +19,7 @@ Variables de entorno:
 import logging
 import os
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 # ── Forzar stdout sin buffer para que Railway muestre logs en tiempo real ──
 try:
@@ -56,6 +56,19 @@ try:
 except ImportError:
     pass  # loguru no instalado
 
+# ── Fast-exit: salida inmediata si es claramente madrugada Perú ─────────────
+# Evita arrancar Flask + BD completos en runs que no van a hacer nada.
+# Umbral conservador 7h: hora_inicio mínima del sistema es 8h, y con el
+# buffer de +30 min cualquier run antes de las 7:30am Perú saldría igual.
+_hora_peru_ahora = datetime.utcnow() - timedelta(hours=5)
+_hora_peru_buffered = (_hora_peru_ahora + timedelta(minutes=30)).hour
+if _hora_peru_buffered < 7:
+    logging.info(
+        f"[CRON] Fast-exit: madrugada Perú ({_hora_peru_ahora:%H:%M}). "
+        "Flask no iniciado — sin acción."
+    )
+    sys.exit(0)
+
 env = os.environ.get("FLASK_ENV", "production")
 
 from app import create_app  # noqa: E402
@@ -85,6 +98,14 @@ with app.app_context():
     logging.info(f"[CRON] Hora prevista: {hora:02d}:00  |  Ventana: {cfg.hora_inicio:02d}–00–{cfg.hora_fin:02d}:00")
     logging.info("=" * 60)
 
+    # ── Verificación de horario ──────────────────────────────
+    if hora < cfg.hora_inicio or hora > cfg.hora_fin:
+        logging.info(
+            f"[CRON] Fuera de horario ({cfg.hora_inicio:02d}–00–{cfg.hora_fin:02d}:00). "
+            f"Hora actual Perú: {ahora:%H:%M} — sin acción."
+        )
+        sys.exit(0)
+
     # ── Particiones ──────────────────────────────────────
     logging.info("[PASO 0] Verificando particiones de tracking_historial…")
     try:
@@ -95,14 +116,6 @@ with app.app_context():
             logging.info("[PASO 0] Particiones OK (sin cambios).")
     except Exception as exc_part:
         logging.warning(f"[PASO 0] partition_service falló (no crítico): {exc_part}")
-
-    # ── Verificación de horario ──────────────────────────────
-    if hora < cfg.hora_inicio or hora > cfg.hora_fin:
-        logging.info(
-            f"[CRON] Fuera de horario ({cfg.hora_inicio:02d}–00–{cfg.hora_fin:02d}:00). "
-            f"Hora actual Perú: {ahora:%H:%M} — sin acción."
-        )
-        sys.exit(0)
 
     umbral = cfg.umbral_para_hora(hora)
     logging.info(f"[PASO 1] Umbral activo: {umbral}h")

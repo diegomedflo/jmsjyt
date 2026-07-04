@@ -61,6 +61,17 @@ def _deadline_entre_gestiones(ultimo_intento: datetime) -> datetime:
     return ultimo_intento + timedelta(hours=HORAS_ENTRE_GESTIONES)
 
 
+def _naive(dt: Optional[datetime]) -> Optional[datetime]:
+    """Elimina tzinfo de un datetime para permitir aritmética con datetimes naive.
+
+    MySQL/SQLAlchemy puede devolver datetimes timezone-aware (UTC). Como hora_peru()
+    devuelve un datetime naive, hay que normalizar antes de restar.
+    """
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=None) if dt.tzinfo else dt
+
+
 def _analizar_paquete(
     pkg: Paquete,
     now: datetime,
@@ -73,12 +84,14 @@ def _analizar_paquete(
     if not pkg.fecha_recojo:
         return []  # sin fecha de recojo no hay plazo calculable
 
+    fecha_recojo    = _naive(pkg.fecha_recojo)
+    ultima_gestion  = _naive(pkg.ultima_gestion_at)
     alertas: list[dict] = []
 
     # ── Regla 1: Primera gestión ──────────────────────────────────────────
     # Si no hay ninguna gestión, el plazo va desde el recojo
-    if pkg.ultima_gestion_at is None:
-        deadline = pkg.fecha_recojo + timedelta(hours=horas_primera_gestion)
+    if ultima_gestion is None:
+        deadline = fecha_recojo + timedelta(hours=horas_primera_gestion)
         horas_restantes = (deadline - now).total_seconds() / 3600
         if horas_restantes <= umbral:
             alertas.append({
@@ -91,8 +104,8 @@ def _analizar_paquete(
 
     # ── Regla 2: Entre gestiones ─────────────────────────────────────────
     # Si hay al menos una gestión, medir desde la última
-    elif pkg.ultima_gestion_at is not None:
-        deadline = pkg.ultima_gestion_at + timedelta(hours=horas_entre_gestiones)
+    else:
+        deadline = ultima_gestion + timedelta(hours=horas_entre_gestiones)
         horas_restantes = (deadline - now).total_seconds() / 3600
         if horas_restantes <= umbral:
             alertas.append({
@@ -104,7 +117,7 @@ def _analizar_paquete(
             })
 
     # ── Regla 3: Vencimiento total (5 días / 120h por defecto) ────────────
-    total_deadline = pkg.fecha_recojo + timedelta(hours=horas_total_entrega)
+    total_deadline = fecha_recojo + timedelta(hours=horas_total_entrega)
     horas_total_restantes = (total_deadline - now).total_seconds() / 3600
     if horas_total_restantes <= umbral:
         alertas.append({
@@ -387,15 +400,6 @@ def ejecutar_alertas_global(
         f"Timeout por worker: {WORKER_TIMEOUT_SEG}s."
     )
 
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = {
-            executor.submit(
-                _worker_franquiciado,
-                app, cron_log.id, fq_id,
-                umbral_horas, enviar, cfg.delay_whatsapp,
-            ): fq_id
-            for fq_id in fq_ids
-        }
     executor = ThreadPoolExecutor(max_workers=workers)
     futures = {
         executor.submit(

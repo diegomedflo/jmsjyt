@@ -1,11 +1,12 @@
 """Rutas del panel de administración."""
 from __future__ import annotations
 
+import io
 import json
 
 from flask import (
-    Response, flash, redirect, render_template, request, stream_with_context,
-    url_for, current_app,
+    Response, flash, redirect, render_template, request, send_file,
+    stream_with_context, url_for, current_app,
 )
 from flask_login import login_required
 
@@ -145,6 +146,107 @@ def franquiciados_detalle(fq_id: int):
         last_wa_import_peru=_to_peru(fq.last_wa_import_at),
         last_wa_estado_peru=_to_peru(fq.last_wa_estado_at),
         cfg=cfg,
+    )
+
+
+@admin_bp.route("/franquiciados/<int:fq_id>/paquetes/exportar")
+@login_required
+def paquetes_exportar(fq_id: int):
+    """Descarga todos los paquetes filtrados como Excel."""
+    import openpyxl
+    from datetime import datetime, timedelta
+
+    fq          = db.get_or_404(Franquiciado, fq_id)
+    estado      = request.args.get("estado", "")
+    campo_fecha = request.args.get("campo_fecha", "")
+    fecha_desde = request.args.get("fecha_desde", "")
+    fecha_hasta = request.args.get("fecha_hasta", "")
+
+    q_pkg = Paquete.query.filter_by(franquiciado_id=fq_id)
+    if estado:
+        q_pkg = q_pkg.filter_by(estado=estado)
+
+    _campo_map = {
+        "recojo":    Paquete.fecha_recojo,
+        "gestion":   Paquete.ultima_gestion_at,
+        "importado": Paquete.created_at,
+    }
+    _col = _campo_map.get(campo_fecha)
+    if _col is not None:
+        if fecha_desde:
+            try:
+                q_pkg = q_pkg.filter(_col >= datetime.strptime(fecha_desde, "%Y-%m-%d"))
+            except ValueError:
+                pass
+        if fecha_hasta:
+            try:
+                dt_hasta = datetime.strptime(fecha_hasta, "%Y-%m-%d") + timedelta(days=1)
+                q_pkg = q_pkg.filter(_col < dt_hasta)
+            except ValueError:
+                pass
+
+    paquetes = q_pkg.order_by(Paquete.created_at.desc()).all()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Paquetes"
+
+    headers = [
+        "Waybill", "Estado", "Int. fallidos",
+        "Fecha recojo", "Últ. intento fallido", "Últ. gestión",
+        "Destinatario", "Teléfono", "Provincia", "Ciudad",
+        "Dirección", "Peso (kg)", "Tipo mercancía", "Modo pago",
+        "Origen pedido", "Importado",
+    ]
+    ws.append(headers)
+
+    # Estilo de cabecera
+    from openpyxl.styles import Font, PatternFill, Alignment
+    header_fill = PatternFill("solid", fgColor="0B2D2A")
+    header_font = Font(bold=True, color="FFFFFF")
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+
+    def _fmt(dt):
+        return dt.strftime("%d/%m/%Y %H:%M") if dt else ""
+
+    for pkg in paquetes:
+        ws.append([
+            pkg.waybill_no,
+            pkg.estado,
+            pkg.n_intentos,
+            _fmt(pkg.fecha_recojo),
+            _fmt(pkg.ultimo_intento_at),
+            _fmt(pkg.ultima_gestion_at),
+            pkg.destinatario_nombre or "",
+            pkg.destinatario_telefono or "",
+            pkg.destinatario_provincia or "",
+            pkg.destinatario_ciudad or "",
+            pkg.destinatario_direccion or "",
+            pkg.peso_cobrado,
+            pkg.tipo_mercancia or "",
+            pkg.modo_pago or "",
+            pkg.origen_pedido or "",
+            _fmt(pkg.created_at),
+        ])
+
+    # Ajustar ancho de columnas
+    for col in ws.columns:
+        max_len = max((len(str(c.value or "")) for c in col), default=10)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 40)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"paquetes_{fq.nombre.replace(' ', '_')}_{datetime.utcnow().strftime('%Y%m%d')}.xlsx"
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 

@@ -573,6 +573,76 @@ def paquetes_siniestrar(pkg_id: int):
     return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
 
 
+@admin_bp.route("/paquetes/<int:pkg_id>/tracking-historial")
+@login_required
+def paquete_tracking_historial(pkg_id: int):
+    pkg = db.get_or_404(Paquete, pkg_id)
+    historial = pkg.historial.all()  # order_by n_orden (oldest first)
+
+    from app.services.tracking_service import (
+        _es_recojo_almacen, TIPO_EXCEPCION, TIPO_ENTREGADO, _es_devolucion_jyt
+    )
+
+    recojo_id = None
+    for ev in historial:
+        if _es_recojo_almacen(ev.descripcion or "", ev.tipo_escaneo or ""):
+            recojo_id = ev.id
+            break
+
+    exception_count = 0
+    events_data = []
+
+    for ev in historial:
+        h_label = None
+        h_class = None
+
+        if ev.id == recojo_id:
+            h_label = "Recojo"
+            h_class = "recojo"
+        elif (ev.tipo_escaneo or "").strip() == TIPO_EXCEPCION:
+            exception_count += 1
+            if exception_count == 1:
+                h_label = "1er Fallido"
+                h_class = "fallido-1"
+            elif exception_count == 2:
+                h_label = "2do Fallido"
+                h_class = "fallido-2"
+            elif exception_count == 3:
+                h_label = "3er Fallido"
+                h_class = "fallido-3"
+            else:
+                h_label = f"{exception_count}o Fallido"
+                h_class = "fallido-other"
+        elif (ev.tipo_escaneo or "").strip() == TIPO_ENTREGADO:
+            h_label = "Entregado"
+            h_class = "entregado"
+        elif _es_devolucion_jyt(ev.tipo_escaneo or ""):
+            h_label = "Devuelto"
+            h_class = "devuelto"
+
+        events_data.append({
+            "id": ev.id,
+            "n_orden": ev.n_orden,
+            "hora_escaneo": ev.hora_escaneo.strftime("%d/%m/%Y %H:%M:%S") if ev.hora_escaneo else "—",
+            "tipo_escaneo": ev.tipo_escaneo,
+            "descripcion": ev.descripcion,
+            "interpretacion": ev.interpretacion,
+            "label": h_label,
+            "class": h_class
+        })
+
+    return {
+        "waybill_no": pkg.waybill_no,
+        "estado": pkg.estado,
+        "n_intentos": pkg.n_intentos,
+        "fecha_recojo": pkg.fecha_recojo.strftime("%d/%m/%Y %H:%M:%S") if pkg.fecha_recojo else None,
+        "ultimo_intento_at": pkg.ultimo_intento_at.strftime("%d/%m/%Y %H:%M:%S") if pkg.ultimo_intento_at else None,
+        "ultima_gestion_at": pkg.ultima_gestion_at.strftime("%d/%m/%Y %H:%M:%S") if pkg.ultima_gestion_at else None,
+        "historial": events_data
+    }
+
+
+
 # ── Actualizar tracking de un franquiciado ───────────────────────────────────
 
 @admin_bp.route("/franquiciados/<int:fq_id>/paquetes/actualizar-tracking", methods=["POST"])

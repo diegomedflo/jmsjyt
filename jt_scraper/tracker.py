@@ -36,13 +36,37 @@ class JTTracker:
 
         Args:
             include_detail: Si True (default) llama a get_order_detail para obtener
-                datos del destinatario.  Pasar False cuando ya fueron guardados.
+                datos del destinatario (solo la primera vez).  Pasar False cuando
+                ya fueron guardados.
         """
         waybill_no = waybill_no.strip()
+
+        # ── Detalle estático (no crítico) — un solo intento ───────────────────
+        # Si falla por cualquier motivo (token, red, etc.) se omite sin bloquear
+        # el tracking del paquete.  El cron lo reintentará en la siguiente corrida
+        # si detalle_cargado sigue en False.
+        detail_raw: dict = {}
+        if include_detail:
+            try:
+                detail_raw = self._client.get_order_detail(waybill_no)
+            except TokenExpired:
+                logger.warning(
+                    f"[{waybill_no}] get_order_detail: token expirado — "
+                    "renovando y omitiendo detalle estático por esta vez."
+                )
+                try:
+                    self._refresh()
+                except Exception:
+                    pass
+            except Exception as exc:
+                logger.warning(
+                    f"[{waybill_no}] get_order_detail falló (no crítico, se omite): {exc}"
+                )
+
+        # ── POD tracking (crítico) — hasta 3 intentos ─────────────────────────
         for attempt in range(3):
             try:
-                detail_raw = self._client.get_order_detail(waybill_no) if include_detail else {}
-                pod_raw    = self._client.get_pod_tracking(waybill_no)
+                pod_raw = self._client.get_pod_tracking(waybill_no)
                 return parser.build_result(
                     waybill_no, detail_raw, pod_raw, include_raw=include_raw
                 )

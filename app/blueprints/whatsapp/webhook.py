@@ -1,27 +1,27 @@
 """Webhook para comandos de WhatsApp recibidos desde textmebot.
 
-Textmebot envía un POST a esta URL con JSON cuando llega un mensaje al número.
-Payload de textmebot:
+Textmebot envía un POST a esta URL con JSON cuando llega un mensaje al grupo.
+Payload real de textmebot (mensajes de grupo):
   {
-    "type": "text",
-    "from": "549191919191",   ← número del remitente
-    "from_name": "Joan",
-    "to":   "54134123123",    ← tu número textmebot
-    "file": "null",
-    "message": "/estado"
+    "type":      "text",
+    "from":      "51968547897",              ← teléfono del remitente individual
+    "from_name": "Diego",
+    "to":        "120363408989708753@g.us",  ← JID del grupo (ESTE identifica al franquiciado)
+    "message":   "/estado",
+    "origin":    "phone"
   }
 
 La configuración del webhook en textmebot se hace UNA VEZ por API key:
   GET https://api.textmebot.com/webhook.php?apikey=TU_KEY&webhookurl=https://tuapp.com/webhook/whatsapp
+
+El franquiciado se identifica por el campo "to" (group JID), que debe coincidir
+exactamente con wa_grupo_id o wa_status_grupo_id en la BD.
 
 Comandos soportados:
   /importar  — Importa paquetes desde JMS a la BD (límite: 1 vez al día).
   /estado    — Resumen de estados solo de los lotes de recojo aún activos.
   /agregar   — Activa espera de 2 min; el siguiente mensaje se trata como
                lista de códigos a agregar (separados por espacios o saltos).
-
-El franquiciado se identifica por el campo "from" del payload, que se compara
-contra wa_grupo_id y wa_status_grupo_id en la BD.
 """
 from __future__ import annotations
 
@@ -153,9 +153,9 @@ def _build_estado_message(franquiciado: Franquiciado, now_peru: datetime) -> str
     )
 
 
-def _cmd_estado(franquiciado: Franquiciado, group_id: str) -> None:
+def _cmd_estado(franquiciado: Franquiciado, reply_to: str) -> None:
     """Responde con el resumen de estados de paquetes del franquiciado."""
-    print(f"[WA_ESTADO] Construyendo mensaje para franquiciado id={franquiciado.id} group={group_id!r}", flush=True)
+    print(f"[WA_ESTADO] Construyendo mensaje para franquiciado id={franquiciado.id} reply_to={reply_to!r}", flush=True)
     now_peru = _hora_peru()
     try:
         msg = _build_estado_message(franquiciado, now_peru)
@@ -165,17 +165,8 @@ def _cmd_estado(franquiciado: Franquiciado, group_id: str) -> None:
         raise
     franquiciado.last_wa_estado_at = datetime.utcnow()
     db.session.commit()
-    ok, resp = enviar_whatsapp(
-        api_key=franquiciado.textmebot_api_key,
-        recipient=group_id,
-        text=msg,
-    )
-    print(f"[WA_ESTADO] enviar_whatsapp -> ok={ok} resp={resp[:120] if resp else None}", flush=True)
-    if not ok:
-        logger.warning(
-            "[wa_cmd] Fallo al enviar respuesta franq=%s group=%s: %s",
-            franquiciado.id, group_id, resp[:120],
-        )
+    _send_reply(franquiciado, msg, reply_to)
+    print(f"[WA_ESTADO] _send_reply completado", flush=True)
 
 
 # ── Comando /importar — lógica en hilo de fondo ───────────────────────────────
@@ -188,7 +179,7 @@ def _run_importar_bg(app, franquiciado_id: int, group_id: str) -> None:
         from jt_scraper.outlet_monitor import OutletMonitor
         from jt_scraper.instance_config import JTInstanceConfig
 
-        franquiciado = F.query.get(franquiciado_id)
+        franquiciado = db.session.get(F, franquiciado_id)
         if not franquiciado:
             return
 
@@ -371,7 +362,7 @@ def _maybe_recibir_codigos(
 
 # ── Endpoint webhook ──────────────────────────────────────────────────────────
 
-@whatsapp_bp.route("/whatsapp", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
+@whatsapp_bp.route("/whatsapp", methods=["GET", "POST"])
 @csrf.exempt
 def webhook():
     """Recibe mensajes entrantes de textmebot y despacha los comandos.

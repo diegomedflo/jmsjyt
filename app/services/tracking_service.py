@@ -196,48 +196,19 @@ def refrescar_franquiciado(
 
     if not pendientes:
         logger.info(f"[{franquiciado.nombre}] Sin paquetes pendientes.")
-        return {"consultados": 0, "errores": 0, "entregados": 0, "devueltos": 0, "omitidos": 0}
-
-    # ── Filtro de frecuencia para paquetes sin recojo ──────────────────────
-    # Paquetes que YA llegaron al PDV (fecha_recojo != NULL) → verificar SIEMPRE cada hora.
-    # Paquetes aún en tránsito (fecha_recojo == NULL) → verificar solo 1 de cada
-    # PRE_ARRIVAL_CHECK_HOURS horas, distribuido por pkg.id para no sobrecargar
-    # ninguna hora concreta. Esto reduce llamadas API ~75% para paquetes en tránsito,
-    # sin perder el trackeo: cuando lleguen al PDV se detectará en la siguiente ventana.
-    PRE_ARRIVAL_CHECK_HOURS = 4
-    hora_utc = datetime.utcnow().hour
-
-    a_verificar = []
-    omitidos    = 0
-    for pkg in pendientes:
-        if pkg.fecha_recojo is not None:
-            # Ya llegó al PDV → siempre verificar
-            a_verificar.append(pkg)
-        elif pkg.id % PRE_ARRIVAL_CHECK_HOURS == hora_utc % PRE_ARRIVAL_CHECK_HOURS:
-            # En tránsito → verificar en su "ventana" de hora (1 de cada N horas)
-            a_verificar.append(pkg)
-        else:
-            omitidos += 1
-
-    logger.info(
-        f"[{franquiciado.nombre}] {len(a_verificar)} a verificar, "
-        f"{omitidos} en tránsito omitidos esta hora (se verificarán más tarde)"
-    )
-
-    if not a_verificar:
-        return {"consultados": 0, "errores": 0, "entregados": 0, "devueltos": 0, "omitidos": omitidos}
+        return {"consultados": 0, "errores": 0, "entregados": 0, "devueltos": 0}
 
     try:
         tracker = JTTracker(cfg)
     except Exception as exc:
         logger.error(f"[{franquiciado.nombre}] No se pudo inicializar JTTracker: {exc}")
-        return {"consultados": 0, "errores": len(a_verificar), "entregados": 0, "devueltos": 0, "omitidos": omitidos}
+        return {"consultados": 0, "errores": len(pendientes), "entregados": 0, "devueltos": 0}
 
-    stats = {"consultados": 0, "errores": 0, "entregados": 0, "devueltos": 0, "omitidos": omitidos}
-    _total = len(a_verificar)
+    stats = {"consultados": 0, "errores": 0, "entregados": 0, "devueltos": 0}
+    _total = len(pendientes)
     _done  = 0
 
-    for pkg in a_verificar:
+    for pkg in pendientes:
         _pkg_error = False
         try:
             result = tracker.track(pkg.waybill_no)

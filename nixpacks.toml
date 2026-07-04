@@ -4,13 +4,13 @@
 # "pip install -r requirements.txt" automáticamente (fase install).
 # Solo agregamos la fase build para instalar el browser de Playwright.
 # Mismo patrón que vasmat (que solo usa aptPkgs sin tocar install).
+#
+# El start command NO se define aquí — lo define el Procfile (web service)
+# y el Railway dashboard (cron service), por separado.
 
 [variables]
 PYTHONUNBUFFERED = "1"   # logs en tiempo real en Railway
 
 [phases.build]
 cmds = ["playwright install chromium --with-deps"]
-
-[start]
-cmd = "gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
 

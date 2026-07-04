@@ -92,8 +92,11 @@ def franquiciados_detalle(fq_id: int):
     campo_fecha = request.args.get("campo_fecha", "")
     fecha_desde = request.args.get("fecha_desde", "")
     fecha_hasta = request.args.get("fecha_hasta", "")
+    q_waybill   = request.args.get("q", "").strip()
 
     q_pkg = Paquete.query.filter_by(franquiciado_id=fq_id)
+    if q_waybill:
+        q_pkg = q_pkg.filter(Paquete.waybill_no.ilike(f"%{q_waybill}%"))
     if estado:
         q_pkg = q_pkg.filter_by(estado=estado)
 
@@ -141,6 +144,7 @@ def franquiciados_detalle(fq_id: int):
         campo_fecha=campo_fecha,
         fecha_desde=fecha_desde,
         fecha_hasta=fecha_hasta,
+        q_waybill=q_waybill,
         alertas=alertas,
         now=datetime.now(timezone.utc),
         last_wa_import_peru=_to_peru(fq.last_wa_import_at),
@@ -161,8 +165,11 @@ def paquetes_exportar(fq_id: int):
     campo_fecha = request.args.get("campo_fecha", "")
     fecha_desde = request.args.get("fecha_desde", "")
     fecha_hasta = request.args.get("fecha_hasta", "")
+    q_waybill   = request.args.get("q", "").strip()
 
     q_pkg = Paquete.query.filter_by(franquiciado_id=fq_id)
+    if q_waybill:
+        q_pkg = q_pkg.filter(Paquete.waybill_no.ilike(f"%{q_waybill}%"))
     if estado:
         q_pkg = q_pkg.filter_by(estado=estado)
 

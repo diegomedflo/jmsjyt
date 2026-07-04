@@ -336,17 +336,38 @@
     <!-- Filtros por estado -->
     <div style="display:flex;gap:0.3rem;flex-wrap:wrap;">
       {% for est, label in [('','Todos'),('pendiente','Pendientes'),('entregado','Entregados'),('devuelto','Devueltos'),('cancelado','Cancelados')] %}
-      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, estado=est, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta) }}"
+      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, estado=est, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, q=q_waybill) }}"
          class="btn btn-sm {{ 'btn-primary' if estado_filtro == est else 'btn-ghost' }}"
          style="font-size:0.75rem;padding:0.2rem 0.6rem;">{{ label }}</a>
       {% endfor %}
     </div>
+    <!-- Búsqueda por waybill -->
+    <form method="GET" action="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id) }}"
+          style="display:flex;align-items:center;gap:0.35rem;margin-left:auto;">
+      <input type="hidden" name="estado" value="{{ estado_filtro }}" />
+      <input type="hidden" name="campo_fecha" value="{{ campo_fecha }}" />
+      <input type="hidden" name="fecha_desde" value="{{ fecha_desde }}" />
+      <input type="hidden" name="fecha_hasta" value="{{ fecha_hasta }}" />
+      <input type="text" name="q" value="{{ q_waybill }}"
+             placeholder="Buscar waybill…"
+             style="font-size:0.8rem;padding:0.25rem 0.6rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-primary);width:180px;" />
+      <button type="submit" class="btn btn-primary btn-sm" style="font-size:0.8rem;padding:0.25rem 0.55rem;">
+        <i class="bi bi-search"></i>
+      </button>
+      {% if q_waybill %}
+      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta) }}"
+         class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:0.25rem 0.4rem;" title="Limpiar búsqueda">
+        <i class="bi bi-x-lg"></i>
+      </a>
+      {% endif %}
+    </form>
   </div>
 
   <!-- Filtro de fechas -->
   <form method="GET" action="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id) }}"
         style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:0.65rem 1rem;border-bottom:1px solid var(--card-border);background:var(--bg);">
     <input type="hidden" name="estado" value="{{ estado_filtro }}" />
+    <input type="hidden" name="q" value="{{ q_waybill }}" />
     <i class="bi bi-funnel" style="color:var(--text-secondary);font-size:0.85rem;"></i>
     <select name="campo_fecha"
             style="font-size:0.8rem;padding:0.25rem 0.5rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-primary);cursor:pointer;">
@@ -365,14 +386,14 @@
       <i class="bi bi-search"></i> Filtrar
     </button>
     {% if campo_fecha or fecha_desde or fecha_hasta %}
-    <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, estado=estado_filtro) }}"
+    <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, estado=estado_filtro, q=q_waybill) }}"
        class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:0.28rem 0.6rem;"
        title="Quitar filtro de fechas">
       <i class="bi bi-x-circle"></i> Limpiar
     </a>
     {% endif %}
     <!-- Exportar Excel -->
-    <a href="{{ url_for('admin.paquetes_exportar', fq_id=fq.id, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta) }}"
+    <a href="{{ url_for('admin.paquetes_exportar', fq_id=fq.id, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, q=q_waybill) }}"
        class="btn btn-outline btn-sm" style="font-size:0.8rem;padding:0.28rem 0.75rem;margin-left:auto;"
        title="Descargar todos los resultados como Excel">
       <i class="bi bi-file-earmark-excel"></i> Exportar Excel
@@ -482,12 +503,12 @@
     </span>
     <div style="display:flex;gap:0.25rem;align-items:center;">
       {% if pagination.has_prev %}
-      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=pagination.prev_num, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta) }}"
+      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=pagination.prev_num, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, q=q_waybill) }}"
          class="btn btn-ghost btn-sm" style="padding:0.2rem 0.5rem;"><i class="bi bi-chevron-left"></i></a>
       {% endif %}
       {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
         {% if p %}
-          <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=p, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta) }}"
+          <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=p, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, q=q_waybill) }}"
              class="btn btn-sm {{ 'btn-primary' if p == pagination.page else 'btn-ghost' }}"
              style="padding:0.2rem 0.5rem;min-width:30px;text-align:center;">{{ p }}</a>
         {% else %}
@@ -495,7 +516,7 @@
         {% endif %}
       {% endfor %}
       {% if pagination.has_next %}
-      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=pagination.next_num, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta) }}"
+      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, page=pagination.next_num, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, q=q_waybill) }}"
          class="btn btn-ghost btn-sm" style="padding:0.2rem 0.5rem;"><i class="bi bi-chevron-right"></i></a>
       {% endif %}
     </div>
@@ -506,7 +527,7 @@
   {% else %}
   <div style="padding:2.5rem;text-align:center;color:var(--text-secondary);">
     <i class="bi bi-box-seam" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:0.5rem;"></i>
-    Sin paquetes{% if estado_filtro %} con estado <strong>{{ estado_filtro }}</strong>{% endif %}.
+    Sin paquetes{% if q_waybill %} con waybill <strong>{{ q_waybill }}</strong>{% elif estado_filtro %} con estado <strong>{{ estado_filtro }}</strong>{% endif %}.
   </div>
   {% endif %}
 </div>

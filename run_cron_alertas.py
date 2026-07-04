@@ -21,6 +21,9 @@ import os
 import sys
 from datetime import datetime, timedelta
 
+# ── DEBUG: primer print antes de cualquier import de app ──────────────────
+print(">>> [CRON] Script iniciado — imports stdlib OK", flush=True)
+
 # ── Forzar stdout sin buffer para que Railway muestre logs en tiempo real ──
 try:
     sys.stdout.reconfigure(line_buffering=True)
@@ -56,24 +59,28 @@ try:
 except ImportError:
     pass  # loguru no instalado
 
+print(f">>> [CRON] loguru bridge configurado. Arrancando lógica principal…", flush=True)
+
 # ── Fast-exit: salida inmediata si es claramente madrugada Perú ─────────────
 # Evita arrancar Flask + BD completos en runs que no van a hacer nada.
 # Umbral conservador 7h: hora_inicio mínima del sistema es 8h, y con el
 # buffer de +30 min cualquier run antes de las 7:30am Perú saldría igual.
 _hora_peru_ahora = datetime.utcnow() - timedelta(hours=5)
 _hora_peru_buffered = (_hora_peru_ahora + timedelta(minutes=30)).hour
+print(f">>> [CRON] Hora UTC: {datetime.utcnow():%H:%M} | Hora Perú: {_hora_peru_ahora:%H:%M} | Hora buffered: {_hora_peru_buffered:02d}h", flush=True)
 if _hora_peru_buffered < 7:
-    logging.info(
-        f"[CRON] Fast-exit: madrugada Perú ({_hora_peru_ahora:%H:%M}). "
-        "Flask no iniciado — sin acción."
-    )
+    msg = f"[CRON] Fast-exit: madrugada Perú ({_hora_peru_ahora:%H:%M}). Flask no iniciado — sin acción."
+    print(f">>> {msg}", flush=True)
+    logging.info(msg)
     sys.exit(0)
 
 env = os.environ.get("FLASK_ENV", "production")
+print(f">>> [CRON] FLASK_ENV={env} | Iniciando create_app…", flush=True)
 
 from app import create_app  # noqa: E402
 
 app = create_app(env)
+print(">>> [CRON] create_app OK — conectando a BD…", flush=True)
 
 ADMIN_API_KEY      = os.environ.get("ADMIN_STATUS_API_KEY", "")
 ADMIN_STATUS_GROUP = os.environ.get("ADMIN_STATUS_GROUP", "")
@@ -84,6 +91,7 @@ with app.app_context():
     from app.services.alertas_service import (
         ejecutar_alertas_global, formatear_reporte_ejecucion, hora_peru,
     )
+    print(">>> [CRON] Modelos y servicios importados — consultando BD…", flush=True)
 
     ahora = hora_peru()
     # Tolerar ±30 min de desfase en el disparo del cron (Railway).
@@ -92,6 +100,7 @@ with app.app_context():
 
     # ── Cabecera del log ──────────────────────────────────────
     fq_activos = Franquiciado.query.filter_by(activo=True).count()
+    print(f">>> [CRON] BD OK | Hora Perú real: {ahora:%H:%M} | Hora prevista: {hora:02d}h | Franquiciados activos: {fq_activos}", flush=True)
     logging.info("=" * 60)
     logging.info(f"[CRON] INICIO — hora Perú: {ahora:%Y-%m-%d %H:%M}")
     logging.info(f"[CRON] Franquiciados activos: {fq_activos}")
@@ -99,11 +108,11 @@ with app.app_context():
     logging.info("=" * 60)
 
     # ── Verificación de horario ──────────────────────────────
+    print(f">>> [CRON] Ventana configurada: {cfg.hora_inicio:02d}h–{cfg.hora_fin:02d}h | Hora prevista: {hora:02d}h", flush=True)
     if hora < cfg.hora_inicio or hora > cfg.hora_fin:
-        logging.info(
-            f"[CRON] Fuera de horario ({cfg.hora_inicio:02d}–00–{cfg.hora_fin:02d}:00). "
-            f"Hora actual Perú: {ahora:%H:%M} — sin acción."
-        )
+        msg = f"[CRON] Fuera de horario ({cfg.hora_inicio:02d}–{cfg.hora_fin:02d}h). Hora actual Perú: {ahora:%H:%M} — sin acción."
+        print(f">>> {msg}", flush=True)
+        logging.info(msg)
         sys.exit(0)
 
     # ── Particiones ──────────────────────────────────────
@@ -118,6 +127,7 @@ with app.app_context():
         logging.warning(f"[PASO 0] partition_service falló (no crítico): {exc_part}")
 
     umbral = cfg.umbral_para_hora(hora)
+    print(f">>> [CRON] Umbral activo: {umbral}h — lanzando ejecutar_alertas_global…", flush=True)
     logging.info(f"[PASO 1] Umbral activo: {umbral}h")
 
     # ── Ejecución principal ───────────────────────────────
@@ -159,9 +169,11 @@ with app.app_context():
 
     # ── Resumen final ───────────────────────────────────
     if error_critico:
+        print(f">>> [CRON] FALLO CRÍTICO: {error_critico}", flush=True)
         logging.error("[CRON] FALLO — saliendo con código 1")
         sys.exit(1)
 
+    print(f">>> [CRON] Ejecución OK | paq consultados={cron_log.paquetes_consultados} | por_vencer={cron_log.paquetes_por_vencer} | alertas_WA={cron_log.alertas_enviadas} | errores={cron_log.errores}", flush=True)
     logging.info("=" * 60)
     logging.info("[CRON] RESUMEN FINAL")
     logging.info(f"  Hora prevista (Perú) : {hora:02d}:00 (real {ahora:%H:%M})")

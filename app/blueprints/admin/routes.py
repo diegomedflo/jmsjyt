@@ -699,9 +699,24 @@ def franquiciados_dashboard(fq_id: int):
 
     fq = db.get_or_404(Franquiciado, fq_id)
 
-    hoy           = datetime.utcnow().date()
-    hace_30       = hoy - timedelta(days=29)
-    fecha_inicio  = datetime(hace_30.year, hace_30.month, hace_30.day)
+    hoy = datetime.utcnow().date()
+
+    # Primera fecha con datos del franquiciado (recojo o entrega)
+    _min_recojo = db.session.query(func.min(Paquete.fecha_recojo)).filter(
+        Paquete.franquiciado_id == fq_id, Paquete.fecha_recojo.isnot(None)
+    ).scalar()
+    _min_entrega = db.session.query(func.min(Paquete.ultima_gestion_at)).filter(
+        Paquete.franquiciado_id == fq_id, Paquete.ultima_gestion_at.isnot(None)
+    ).scalar()
+
+    def _to_date(v):
+        if v is None:
+            return None
+        return v.date() if hasattr(v, "date") and callable(v.date) else v
+
+    _candidates = [_to_date(_min_recojo), _to_date(_min_entrega)]
+    primer_dia   = min(d for d in _candidates if d is not None) if any(_candidates) else hoy - timedelta(days=29)
+    fecha_inicio = datetime(primer_dia.year, primer_dia.month, primer_dia.day)
 
     # ── 1. Totales por estado ────────────────────────────────────────────────
     por_estado_raw = (
@@ -717,9 +732,10 @@ def franquiciados_dashboard(fq_id: int):
         if total_paquetes else 0
     )
 
-    # ── 2. Series de 30 días ─────────────────────────────────────────────────
-    dias_date  = [hoy - timedelta(days=i) for i in range(29, -1, -1)]
-    dias_iso   = [d.isoformat() for d in dias_date]
+    # ── 2. Series diarias desde primer dato ────────────────────────────────
+    n_dias      = (hoy - primer_dia).days + 1
+    dias_date   = [primer_dia + timedelta(days=i) for i in range(n_dias)]
+    dias_iso    = [d.isoformat() for d in dias_date]
     dias_labels = [d.strftime("%d/%m") for d in dias_date]
 
     def _key(val):
@@ -757,7 +773,9 @@ def franquiciados_dashboard(fq_id: int):
     entregados_map  = {_key(r.dia): r.n for r in entregados_raw}
     entregados_serie = [entregados_map.get(d, 0) for d in dias_iso]
 
-    # ── 3. Entregas por hora del día (hora Perú = UTC − 5) ──────────────────
+    # ── 3. Entregas por hora del día ─────────────────────────────────────────
+    # ultima_gestion_at ya se almacena en hora peruana (la API JyT la devuelve
+    # así, sin conversión adicional). No se aplica offset.
     ts_rows = (
         db.session.query(Paquete.ultima_gestion_at)
         .filter(
@@ -769,7 +787,7 @@ def franquiciados_dashboard(fq_id: int):
     )
     por_hora = [0] * 24
     for (dt,) in ts_rows:
-        por_hora[(dt.hour - 5) % 24] += 1
+        por_hora[dt.hour] += 1
 
     manana = sum(por_hora[6:12])
     tarde  = sum(por_hora[12:18])
@@ -826,6 +844,7 @@ def franquiciados_dashboard(fq_id: int):
         por_estado=por_estado,
         tasa_entrega=tasa_entrega,
         dias_labels=dias_labels,
+        evolucion_desde=primer_dia.strftime("%d/%m/%Y"),
         recogidos_serie=recogidos_serie,
         entregados_serie=entregados_serie,
         por_hora=por_hora,

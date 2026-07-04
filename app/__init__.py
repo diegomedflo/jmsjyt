@@ -41,11 +41,13 @@ def _init_extensions(app: Flask) -> None:
 
 
 def _register_blueprints(app: Flask) -> None:
-    from app.blueprints.auth  import auth_bp
-    from app.blueprints.admin import admin_bp
+    from app.blueprints.auth      import auth_bp
+    from app.blueprints.admin     import admin_bp
+    from app.blueprints.whatsapp  import whatsapp_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(whatsapp_bp)
 
     # Redirigir raíz al dashboard
     @app.route("/")

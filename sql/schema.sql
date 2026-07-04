@@ -237,6 +237,46 @@ CREATE INDEX IF NOT EXISTS idx_excel_imports_franq
     ON excel_imports(franquiciado_id, imported_at DESC);
 
 
+-- ── Migraciones incrementales ─────────────────────────────────
+-- Columnas agregadas después de la creación inicial de la tabla.
+-- Usar ADD COLUMN IF NOT EXISTS para idempotencia.
+
+-- v2.2: columnas de reglas personalizadas por franquiciado
+ALTER TABLE franquiciados
+    ADD COLUMN IF NOT EXISTS horas_total_entrega   INTEGER NOT NULL DEFAULT 120,
+    ADD COLUMN IF NOT EXISTS horas_primera_gestion INTEGER NOT NULL DEFAULT 48;
+
+-- v2.3: timestamp para rate-limit del comando /importar por WhatsApp
+ALTER TABLE franquiciados
+    ADD COLUMN IF NOT EXISTS last_wa_import_at TIMESTAMPTZ;
+
+-- v2.4: columnas de detalle del paquete (datos estáticos del pedido)
+ALTER TABLE paquetes
+    ADD COLUMN IF NOT EXISTS ultima_gestion_at      TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS detalle_cargado        BOOLEAN     NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS destinatario_nombre    VARCHAR(200),
+    ADD COLUMN IF NOT EXISTS destinatario_telefono  VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS destinatario_provincia VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS destinatario_ciudad    VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS destinatario_area      VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS destinatario_direccion VARCHAR(500),
+    ADD COLUMN IF NOT EXISTS peso_cobrado           REAL,
+    ADD COLUMN IF NOT EXISTS tipo_mercancia         VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS modo_pago              VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS origen_pedido          VARCHAR(100);
+
+-- v2.4b: estado siniestrado
+ALTER TABLE paquetes
+    DROP CONSTRAINT IF EXISTS paquetes_estado_check;
+ALTER TABLE paquetes
+    ADD CONSTRAINT paquetes_estado_check
+    CHECK (estado IN ('pendiente','entregado','devuelto','cancelado','siniestrado'));
+
+-- wa_status_grupo_id en franquiciados (para reportes al admin)
+ALTER TABLE franquiciados
+    ADD COLUMN IF NOT EXISTS wa_status_grupo_id VARCHAR(120);
+
+
 -- ── Admin user inicial ────────────────────────────────────────
 -- usuario: admin | contrasena: Mateo1997
 INSERT INTO admin_users (username, password_hash)

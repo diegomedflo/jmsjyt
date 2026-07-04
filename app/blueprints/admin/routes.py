@@ -149,6 +149,7 @@ def franquiciados_detalle(fq_id: int):
         now=datetime.now(timezone.utc),
         last_wa_import_peru=_to_peru(fq.last_wa_import_at),
         last_wa_estado_peru=_to_peru(fq.last_wa_estado_at),
+        last_tracking_peru=_to_peru(fq.last_tracking_at),
         cfg=cfg,
     )
 
@@ -586,6 +587,9 @@ def paquetes_actualizar_tracking(fq_id: int):
 
     try:
         stats = refrescar_franquiciado(fq, flask_debug=current_app.debug)
+        from datetime import datetime
+        fq.last_tracking_at = datetime.utcnow()
+        db.session.commit()
         flash(
             f"Tracking actualizado: {stats['consultados']} paquete(s) procesado(s). "
             f"Entregados: {stats['entregados']} · Devueltos: {stats['devueltos']} · "

@@ -140,6 +140,13 @@
           {% else %}—{% endif %}
         </span>
 
+        <span class="dl-label">Últ. tracking</span>
+        <span class="dl-value" style="font-size:0.8rem;">
+          {% if last_tracking_peru %}
+            {{ last_tracking_peru.strftime('%d/%m/%Y %H:%M') }} <span style="color:var(--text-secondary);">(hora Perú)</span>
+          {% else %}<span style="color:var(--text-secondary);">Nunca</span>{% endif %}
+        </span>
+
         {% if fq.notas %}
         <span class="dl-label">Notas</span>
         <span class="dl-value">{{ fq.notas }}</span>

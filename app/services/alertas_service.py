@@ -207,6 +207,10 @@ def ejecutar_alertas_franquiciado(
     flask_debug = current_app.debug
     refresh_stats = refrescar_franquiciado(franquiciado, flask_debug=flask_debug)
 
+    # Registrar timestamp de última actualización de tracking
+    franquiciado.last_tracking_at = datetime.utcnow()
+    db.session.commit()
+
     emit(
         f"[{franquiciado.nombre}] Refresh: consultados={refresh_stats['consultados']} "
         f"errores={refresh_stats['errores']} entregados={refresh_stats['entregados']} "

@@ -285,6 +285,10 @@ ALTER TABLE franquiciados
 ALTER TABLE franquiciados
     ADD COLUMN IF NOT EXISTS wa_esperando_codigos_at TIMESTAMPTZ;
 
+-- v2.6: última vez que se corrió el tracking (cron o botón manual)
+ALTER TABLE franquiciados
+    ADD COLUMN IF NOT EXISTS last_tracking_at TIMESTAMPTZ;
+
 
 -- ── Admin user inicial ────────────────────────────────────────
 -- usuario: admin | contrasena: Mateo1997

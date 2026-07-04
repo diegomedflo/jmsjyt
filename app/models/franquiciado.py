@@ -37,6 +37,7 @@ class Franquiciado(db.Model):
     last_wa_import_at        = db.Column(db.DateTime, nullable=True)   # rate-limit /importar (1/día)
     last_wa_estado_at        = db.Column(db.DateTime, nullable=True)   # última consulta /estado (UTC)
     wa_esperando_codigos_at  = db.Column(db.DateTime, nullable=True)   # inicio espera /agregar (UTC)
+    last_tracking_at         = db.Column(db.DateTime, nullable=True)   # última vez que se actualizó el tracking (cron o botón)
     created_at         = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at         = db.Column(
         db.DateTime, nullable=False,

@@ -85,12 +85,38 @@ def franquiciados_detalle(fq_id: int):
     from datetime import datetime, timezone, timedelta
     PERU_UTC_OFFSET = timedelta(hours=5)
 
-    fq      = db.get_or_404(Franquiciado, fq_id)
-    page    = request.args.get("page", 1, type=int)
-    estado  = request.args.get("estado", "")
-    q_pkg   = Paquete.query.filter_by(franquiciado_id=fq_id)
+    fq          = db.get_or_404(Franquiciado, fq_id)
+    page        = request.args.get("page", 1, type=int)
+    estado      = request.args.get("estado", "")
+    campo_fecha = request.args.get("campo_fecha", "")
+    fecha_desde = request.args.get("fecha_desde", "")
+    fecha_hasta = request.args.get("fecha_hasta", "")
+
+    q_pkg = Paquete.query.filter_by(franquiciado_id=fq_id)
     if estado:
         q_pkg = q_pkg.filter_by(estado=estado)
+
+    # Filtros de fecha
+    _campo_map = {
+        "recojo":    Paquete.fecha_recojo,
+        "gestion":   Paquete.ultima_gestion_at,
+        "importado": Paquete.created_at,
+    }
+    _col = _campo_map.get(campo_fecha)
+    if _col is not None:
+        if fecha_desde:
+            try:
+                dt_desde = datetime.strptime(fecha_desde, "%Y-%m-%d")
+                q_pkg = q_pkg.filter(_col >= dt_desde)
+            except ValueError:
+                pass
+        if fecha_hasta:
+            try:
+                dt_hasta = datetime.strptime(fecha_hasta, "%Y-%m-%d") + timedelta(days=1)
+                q_pkg = q_pkg.filter(_col < dt_hasta)
+            except ValueError:
+                pass
+
     q_pkg      = q_pkg.order_by(Paquete.created_at.desc())
     pagination = q_pkg.paginate(page=page, per_page=50, error_out=False)
     alertas    = AlertaLog.query.filter_by(franquiciado_id=fq_id).order_by(
@@ -111,6 +137,9 @@ def franquiciados_detalle(fq_id: int):
         paquetes=pagination.items,
         pagination=pagination,
         estado_filtro=estado,
+        campo_fecha=campo_fecha,
+        fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta,
         alertas=alertas,
         now=datetime.now(timezone.utc),
         last_wa_import_peru=_to_peru(fq.last_wa_import_at),

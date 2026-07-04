@@ -125,6 +125,13 @@
                 <span class="form-hint">Tiempo máximo desde el recojo para que haya al menos 1 gestión (asignación o intento).</span>
                 {% if form.horas_primera_gestion.errors %}<span class="form-error">{{ form.horas_primera_gestion.errors[0] }}</span>{% endif %}
               </div>
+              <div class="form-group">
+                <label class="form-label">Máx horas entre gestiones *</label>
+                <input type="number" name="horas_entre_gestiones" class="form-control"
+                       value="{{ form.horas_entre_gestiones.data or 48 }}" required min="4" max="240" />
+                <span class="form-hint">Tiempo máximo permitido entre cualquier gestión (asignación, escaneo o excepción). Default: 48h.</span>
+                {% if form.horas_entre_gestiones.errors %}<span class="form-error">{{ form.horas_entre_gestiones.errors[0] }}</span>{% endif %}
+              </div>
             </div>
           </div>
 

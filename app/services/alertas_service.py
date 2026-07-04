@@ -7,7 +7,7 @@ En cada corrida del cron (horaria, dentro del horario laboral 8am–11pm Perú):
        - Primera gestión: X horas desde el recojo (franquiciado.horas_primera_gestion).
          Una 'gestión' es cualquier acción: asignación de motorizado, escaneo de
          entrega o escaneo de excepción.
-       - Entre gestiones: Y horas desde la última gestión (cfg.horas_entre_gestiones).
+       - Entre gestiones: Y horas desde la última gestión (franquiciado.horas_entre_gestiones).
        - Vencimiento total: Z horas desde el recojo (franquiciado.horas_total_entrega).
      Máximo 3 intentos fallidos (n_intentos >= 3 → devuelto).
   3. Si un paquete está a ``umbral_horas`` o menos de vencer, se alerta por WA.
@@ -208,7 +208,7 @@ def ejecutar_alertas_franquiciado(
         resultados = _analizar_paquete(
             pkg, now, umbral_horas,
             horas_primera_gestion = franquiciado.horas_primera_gestion,
-            horas_entre_gestiones  = cfg.horas_entre_gestiones,
+            horas_entre_gestiones  = franquiciado.horas_entre_gestiones,
             horas_total_entrega    = franquiciado.horas_total_entrega,
         )
         alertas.extend(resultados)
@@ -386,8 +386,15 @@ def ejecutar_alertas_global(
     }
     logger.info(f"[cron] {len(futures)} futures en cola. Esperando resultados…")
 
+    # Timeout total escalable: cuántos lotes de `workers` caben × timeout por worker.
+    # Con 2 franquiciados / 4 workers → 1 lote → 300s.
+    # Con 50 franquiciados / 4 workers → 13 lotes → 3900s (~65 min).
+    # Nunca se fuerza un límite artificial — el sistema escala solo.
+    import math
+    _total_timeout = math.ceil(len(fq_ids) / workers) * WORKER_TIMEOUT_SEG + 60
+
     completados = 0
-    for future in as_completed(futures, timeout=WORKER_TIMEOUT_SEG * len(fq_ids) + 60):
+    for future in as_completed(futures, timeout=_total_timeout):
         fq_id = futures[future]
         completados += 1
         try:

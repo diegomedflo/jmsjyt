@@ -29,6 +29,7 @@ class FranquiciadoForm(FlaskForm):
     # Reglas de entrega personalizadas
     horas_total_entrega   = IntegerField("Plazo total de entrega (horas)",  validators=[DataRequired(), NumberRange(min=24, max=720)])
     horas_primera_gestion = IntegerField("Primera gestión máx (horas)",     validators=[DataRequired(), NumberRange(min=4, max=240)])
+    horas_entre_gestiones = IntegerField("Máx horas entre gestiones",       validators=[DataRequired(), NumberRange(min=4, max=240)])
 
     def validate_jt_pass(self, field):
         """Contraseña solo requerida al crear; al editar se puede dejar vacía."""
@@ -65,4 +66,4 @@ class ConfiguracionForm(FlaskForm):
     delay_whatsapp        = FloatField("Delay entre envíos WA (seg)",       validators=[DataRequired(), NumberRange(min=0, max=60)])
     sync_dias_atras       = IntegerField("Días atrás para sincronizar",     validators=[DataRequired(), NumberRange(min=1, max=365)])
     sync_time_type        = IntegerField("Tipo de fecha (timeType)",        validators=[DataRequired(), NumberRange(min=0, max=1)])
-    horas_entre_gestiones = IntegerField("Máx horas entre gestiones (global)", validators=[DataRequired(), NumberRange(min=4, max=240)])
+

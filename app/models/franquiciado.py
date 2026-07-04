@@ -32,6 +32,7 @@ class Franquiciado(db.Model):
     # ── Reglas de entrega personalizadas ──────────────────────────────────
     horas_total_entrega   = db.Column(db.Integer, nullable=False, default=120)  # 5 días = 120h
     horas_primera_gestion = db.Column(db.Integer, nullable=False, default=48)   # 48h para primera gestión
+    horas_entre_gestiones = db.Column(db.Integer, nullable=False, default=48)   # max entre gestiones
     # ── Comandos WhatsApp ─────────────────────────────────────────────────
     last_wa_import_at  = db.Column(db.DateTime, nullable=True)   # rate-limit /importar (1/día)
     last_wa_estado_at  = db.Column(db.DateTime, nullable=True)   # última consulta /estado (UTC)

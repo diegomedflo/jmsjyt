@@ -27,8 +27,6 @@ class Configuracion(db.Model):
     # ── Configuración de sincronización automática (OutletMonitor) ──────────────────────
     sync_dias_atras       = db.Column(db.SmallInteger, nullable=False, default=30)
     sync_time_type        = db.Column(db.SmallInteger, nullable=False, default=1)
-    # ── Regla General J&T (global) ───────────────────────────────────────────────
-    horas_entre_gestiones = db.Column(db.Integer, nullable=False, default=48)  # max entre gestiones
     updated_at     = db.Column(
         db.DateTime, nullable=False,
         default=datetime.utcnow, onupdate=datetime.utcnow,

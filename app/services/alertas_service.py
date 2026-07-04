@@ -118,11 +118,32 @@ def _analizar_paquete(
     return alertas
 
 
+def _fmt_tiempo(horas_restantes: float) -> str:
+    """Devuelve string legible de tiempo restante o vencido con horas y minutos."""
+    total_min = int(round(abs(horas_restantes) * 60))
+    h = total_min // 60
+    m = total_min % 60
+    if horas_restantes < 0:
+        if h > 0 and m > 0:
+            return f"⚠️ VENCIDO hace {h}h {m}m"
+        elif h > 0:
+            return f"⚠️ VENCIDO hace {h}h"
+        else:
+            return f"⚠️ VENCIDO hace {m}m"
+    else:
+        if h > 0 and m > 0:
+            return f"faltan {h}h {m}m"
+        elif h > 0:
+            return f"faltan {h}h"
+        else:
+            return f"faltan {m}m"
+
+
 def _construir_mensaje(alertas: list[dict], franquiciado: Franquiciado, now: datetime) -> str:
     """Construye el texto del mensaje WhatsApp con los paquetes por vencer."""
     CASO_LABEL = {
-        "primera_gestion":  "🔴 Primera gestión pendiente",
-        "entre_gestiones":  "🟠 Entre gestiones (mucho tiempo sin acción)",
+        "primera_gestion":   "🔴 Primera gestión pendiente",
+        "entre_gestiones":   "🟠 Entre gestiones (mucho tiempo sin acción)",
         "vencimiento_total": "⚠️ Vencimiento total del plazo J&T",
     }
 
@@ -132,26 +153,22 @@ def _construir_mensaje(alertas: list[dict], franquiciado: Franquiciado, now: dat
         "",
     ]
 
-    for caso in ("primera_gestion", "entre_gestiones"):
+    for caso in ("primera_gestion", "entre_gestiones", "vencimiento_total"):
         grupo = [a for a in alertas if a["caso"] == caso]
         if not grupo:
             continue
         lineas.append(CASO_LABEL[caso] + ":")
         for a in sorted(grupo, key=lambda x: x["horas_restantes"]):
-            hr   = a["horas_restantes"]
-            venc = a["deadline"].strftime("%d/%m %H:%M")
-            n    = a["n_intentos"] + 1
-            if hr < 0:
-                estado = f"⚠️ VENCIDO hace {int(round(abs(hr)))}h"
-            else:
-                estado = f"faltan {int(round(hr))}h"
+            tiempo = _fmt_tiempo(a["horas_restantes"])
+            venc   = a["deadline"].strftime("%d/%m %H:%M")
+            n      = a["n_intentos"] + 1
             lineas.append(
-                f"  • {a['pkg'].waybill_no} — {estado} (vence {venc}) · intento {n}/3"
+                f"  • {a['pkg'].waybill_no} — {tiempo} (vence {venc}) · intento {n}/3"
             )
         lineas.append("")
 
-    lineas.append("⚠️ Gestionar *antes* del vencimiento para no siniestrar el paquete.")
-    lineas.append(f"_Generado {now.strftime('%d/%m %H:%M')} (hora Perú)._")
+    lineas.append("⚠️ Gestionar *antes* del vencimiento para evitar penalidades y siniestros de paquetes.")
+    lineas.append(f"_Generado {now.strftime('%d/%m %H:%M')}_")
     return "\n".join(lineas)
 
 

@@ -34,14 +34,12 @@ from app.services.whatsapp_service import enviar_whatsapp
 logger = logging.getLogger(__name__)
 
 # Número máximo de franquiciados procesados en paralelo en el cron.
-# Math: pool_size(6) - hilo_principal(1) - margen(1) = 4 workers seguros.
-# Aumentar este valor requiere aumentar SQLALCHEMY_ENGINE_OPTIONS["pool_size"].
 MAX_CRON_WORKERS = 4
 
-# Tiempo máximo que esperamos a que UN worker termine (segundos).
-# Cada llamada J&T tiene timeout=25s; 100 paquetes × 25s = 2500s worst-case.
-# 600s (10 min) es conservador y evita que un worker colgado bloquee el cron.
-WORKER_TIMEOUT_SEG = 600
+# Timeout por worker (segundos). Si un franquiciado no termina en este tiempo
+# se marca como error y el cron continúa con los demás.
+# El watchdog global en run_cron_alertas.py mata el proceso si el total supera 15 min.
+WORKER_TIMEOUT_SEG = 300   # 5 min por franquiciado
 
 # UTC → Perú (en producción el servidor corre en UTC)
 PERU_UTC_OFFSET = timedelta(hours=5)
@@ -253,29 +251,39 @@ def _worker_franquiciado(
     enviar: bool,
     delay_segundos: float,
 ) -> dict:
-    """Ejecuta las alertas de UN franquiciado en un thread propio.
-
-    Cada worker:
-      - Crea su propio contexto Flask (necesario en threads secundarios).
-      - Usa su propia sesión SQLAlchemy (thread-local via scoped_session).
-      - Libera la sesión en el bloque finally, aunque ocurra un error.
-
-    Returns dict con las claves que espera ejecutar_alertas_global.
-    """
-    with app.app_context():           # ← cada thread necesita su propio contexto Flask
+    """Ejecuta las alertas de UN franquiciado en un thread propio."""
+    with app.app_context():
+        t_inicio = time.monotonic()
         try:
             fq = Franquiciado.query.get(fq_id)
             if fq is None:
+                logger.error(f"[worker fq_id={fq_id}] Franquiciado no encontrado en BD")
                 return {"fq_id": fq_id, "nombre": "?", "ok": False,
                         "error": f"Franquiciado id={fq_id} no encontrado",
                         "consultados": 0, "por_vencer": 0, "alerta_enviada": False, "errores": 1}
+
+            n_pendientes = Paquete.query.filter_by(
+                franquiciado_id=fq_id, estado=Paquete.ESTADO_PENDIENTE
+            ).count()
+            logger.info(
+                f"[worker] ► INICIO {fq.nombre!r} (fq_id={fq_id}) — "
+                f"{n_pendientes} paq pendientes"
+            )
 
             res = ejecutar_alertas_franquiciado(
                 fq,
                 umbral_horas   = umbral_horas,
                 enviar         = enviar,
                 delay_segundos = delay_segundos,
-                on_event       = None,  # no SSE desde el cron
+                on_event       = None,
+            )
+
+            duracion = time.monotonic() - t_inicio
+            logger.info(
+                f"[worker] ◄ FIN   {fq.nombre!r} (fq_id={fq_id}) — "
+                f"consultados={res['consultados']} errores={res['errores']} "
+                f"por_vencer={res['por_vencer']} alerta={'SÍ' if res['alerta_enviada'] else 'NO'} "
+                f"dur={duracion:.1f}s"
             )
 
             detalle = CronLogDetalle(
@@ -292,7 +300,10 @@ def _worker_franquiciado(
             return {"fq_id": fq_id, "nombre": fq.nombre, "ok": True, "error": None, **res}
 
         except Exception as exc:
-            logger.exception(f"[worker fq_id={fq_id}] Error no capturado: {exc}")
+            duracion = time.monotonic() - t_inicio
+            logger.exception(
+                f"[worker fq_id={fq_id}] Error no capturado tras {duracion:.1f}s: {exc}"
+            )
             try:
                 db.session.rollback()
                 db.session.add(CronLogDetalle(
@@ -303,11 +314,11 @@ def _worker_franquiciado(
                 ))
                 db.session.commit()
             except Exception:
-                pass  # no ocultar el error original
+                pass
             return {"fq_id": fq_id, "nombre": "?", "ok": False, "error": str(exc),
                     "consultados": 0, "por_vencer": 0, "alerta_enviada": False, "errores": 1}
         finally:
-            db.session.remove()   # ← liberar la sesión del thread (evita leaks)
+            db.session.remove()
 
 
 def ejecutar_alertas_global(
@@ -350,7 +361,10 @@ def ejecutar_alertas_global(
         )
 
     workers = min(MAX_CRON_WORKERS, len(fq_ids)) if fq_ids else 1
-    logger.info(f"Lanzando {len(fq_ids)} franquiciados con {workers} workers paralelos.")
+    logger.info(
+        f"[cron] Lanzando {len(fq_ids)} franquiciado(s) con {workers} worker(s) paralelo(s). "
+        f"Timeout por worker: {WORKER_TIMEOUT_SEG}s."
+    )
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {
@@ -361,39 +375,57 @@ def ejecutar_alertas_global(
             ): fq_id
             for fq_id in fq_ids
         }
+    executor = ThreadPoolExecutor(max_workers=workers)
+    futures = {
+        executor.submit(
+            _worker_franquiciado,
+            app, cron_log.id, fq_id,
+            umbral_horas, enviar, cfg.delay_whatsapp,
+        ): fq_id
+        for fq_id in fq_ids
+    }
+    logger.info(f"[cron] {len(futures)} futures en cola. Esperando resultados…")
 
-        for future in as_completed(futures):
-            fq_id = futures[future]
-            try:
-                # WORKER_TIMEOUT_SEG: si el worker no termina en 10 min lo
-                # marcamos como error pero NO lo cancelamos (Python no puede
-                # matar threads). El ThreadPoolExecutor esperará que termine
-                # al hacer shutdown(wait=True) al salir del bloque `with`.
-                res = future.result(timeout=WORKER_TIMEOUT_SEG)
+    completados = 0
+    for future in as_completed(futures, timeout=WORKER_TIMEOUT_SEG * len(fq_ids) + 60):
+        fq_id = futures[future]
+        completados += 1
+        try:
+            res = future.result(timeout=WORKER_TIMEOUT_SEG)
 
-            except FutureTimeoutError:
-                logger.error(
-                    f"[fq_id={fq_id}] Worker timeout después de {WORKER_TIMEOUT_SEG}s. "
-                    "El thread sigue en segundo plano hasta que la API responda."
-                )
-                totales["errores"] += 1
-                continue
+        except FutureTimeoutError:
+            logger.error(
+                f"[cron] fq_id={fq_id} — TIMEOUT después de {WORKER_TIMEOUT_SEG}s. "
+                f"Progreso: {completados}/{len(futures)}. El thread sigue en background."
+            )
+            totales["errores"] += 1
+            continue
 
-            except Exception as exc:
-                # Red de seguridad extra: el worker ya captura sus excepciones;
-                # esto solo debería ocurrir si concurrent.futures falla internamente.
-                logger.error(f"[fq_id={fq_id}] Future falló inesperadamente: {exc}")
-                totales["errores"] += 1
-                continue
+        except Exception as exc:
+            logger.error(f"[cron] fq_id={fq_id} — Future falló: {exc}")
+            totales["errores"] += 1
+            continue
 
-            if res["ok"]:
-                totales["franquiciados_procesados"] += 1
-                totales["paquetes_consultados"]     += res.get("consultados", 0)
-                totales["paquetes_por_vencer"]      += res.get("por_vencer", 0)
-                totales["alertas_enviadas"]         += 1 if res.get("alerta_enviada") else 0
-            else:
-                totales["errores"] += res.get("errores", 1)
-                logger.error(f"[{res['nombre']}] Worker terminó con error: {res['error']}")
+        if res["ok"]:
+            totales["franquiciados_procesados"] += 1
+            totales["paquetes_consultados"]     += res.get("consultados", 0)
+            totales["paquetes_por_vencer"]      += res.get("por_vencer", 0)
+            totales["alertas_enviadas"]         += 1 if res.get("alerta_enviada") else 0
+            logger.info(
+                f"[cron] [{completados}/{len(futures)}] {res['nombre']!r} OK — "
+                f"consultados={res.get('consultados',0)} "
+                f"por_vencer={res.get('por_vencer',0)}"
+            )
+        else:
+            totales["errores"] += res.get("errores", 1)
+            logger.error(
+                f"[cron] [{completados}/{len(futures)}] {res['nombre']!r} ERROR: {res['error']}"
+            )
+
+    # shutdown(wait=False): no bloquea esperando threads colgados.
+    # El watchdog en run_cron_alertas.py mata el proceso si es necesario.
+    executor.shutdown(wait=False)
+    logger.info("[cron] Executor shutdown(wait=False). Workers colgados quedan como daemons.")
 
     duracion = time.monotonic() - inicio
 

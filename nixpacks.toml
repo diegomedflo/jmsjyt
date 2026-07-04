@@ -5,6 +5,9 @@
 # Solo agregamos la fase build para instalar el browser de Playwright.
 # Mismo patrón que vasmat (que solo usa aptPkgs sin tocar install).
 
+[variables]
+PYTHONUNBUFFERED = "1"   # logs en tiempo real en Railway
+
 [phases.build]
 cmds = ["playwright install chromium --with-deps"]
 

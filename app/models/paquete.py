@@ -54,10 +54,25 @@ class Paquete(db.Model):
     # Datos adicionales del pedido (remitente + códigos extra)
     remitente_nombre       = db.Column(db.String(200), nullable=True)  # sender.name
     remitente_telefono     = db.Column(db.String(50),  nullable=True)  # sender.phone
+    remitente_provincia    = db.Column(db.String(100), nullable=True)  # sender.province
+    remitente_ciudad       = db.Column(db.String(100), nullable=True)  # sender.city
+    remitente_area         = db.Column(db.String(100), nullable=True)  # sender.area
+    remitente_direccion    = db.Column(db.String(500), nullable=True)  # sender.address
+    remitente_cp           = db.Column(db.String(20),  nullable=True)  # sender.postal_code
     codigo_cliente         = db.Column(db.String(100), nullable=True)  # customerCode
     nombre_cliente         = db.Column(db.String(200), nullable=True)  # customerName
     codigo_despacho        = db.Column(db.String(100), nullable=True)  # terminalDispatchCode
     pdv_destino            = db.Column(db.String(200), nullable=True)  # dispatchNetworkName
+    # Datos adicionales del destinatario
+    destinatario_cp        = db.Column(db.String(20),  nullable=True)  # receiver.postal_code
+    # Datos del paquete (complementarios)
+    nombre_mercancia       = db.Column(db.String(200), nullable=True)  # goodsName
+    tipo_servicio          = db.Column(db.String(100), nullable=True)  # expressTypeName
+    peso_volumetrico       = db.Column(db.Float,       nullable=True)  # packageVolume (kg)
+    # Ruta logística
+    pdv_recojo             = db.Column(db.String(200), nullable=True)  # realPickNetworkName
+    hub_origen             = db.Column(db.String(200), nullable=True)  # initDistributeName
+    hub_destino            = db.Column(db.String(200), nullable=True)  # destinationDistributeName
 
     created_at        = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at        = db.Column(

@@ -743,7 +743,7 @@
     </div>
     <div class="modal-body">
       <!-- Resumen rápido del paquete -->
-      <div id="mResumen" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:0.75rem;margin-bottom:1.5rem;padding:0.85rem;background:var(--bg);border-radius:var(--radius-sm);font-size:0.82rem;">
+      <div id="mResumen" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:0.75rem;margin-bottom:1rem;padding:0.85rem;background:var(--bg);border-radius:var(--radius-sm);font-size:0.82rem;">
         <div>
           <strong style="color:var(--text-secondary);display:block;margin-bottom:0.15rem;">Estado BD:</strong>
           <span id="mEstadoBadge" class="badge badge-gray">—</span>
@@ -762,7 +762,46 @@
         </div>
       </div>
 
+      <!-- Detalles cliente + paquete + ruta (acordeón simple) -->
+      <div id="mDetalles" style="display:none;margin-bottom:1rem;">
+
+        <!-- Destinatario -->
+        <div style="border:1px solid var(--card-border);border-radius:8px;margin-bottom:0.6rem;overflow:hidden;">
+          <div style="padding:0.55rem 0.85rem;background:var(--bg);font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:0.4rem;">
+            <i class="bi bi-person"></i> Detalles cliente
+          </div>
+          <div style="padding:0.75rem 0.85rem;display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1rem;font-size:0.82rem;" id="mDestinatarioGrid"></div>
+        </div>
+
+        <!-- Paquete -->
+        <div id="mPaqueteSection" style="border:1px solid var(--card-border);border-radius:8px;margin-bottom:0.6rem;overflow:hidden;">
+          <div style="padding:0.55rem 0.85rem;background:var(--bg);font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:0.4rem;">
+            <i class="bi bi-box-seam"></i> Detalles paquete
+          </div>
+          <div style="padding:0.75rem 0.85rem;display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1rem;font-size:0.82rem;" id="mPaqueteGrid"></div>
+        </div>
+
+        <!-- Ruta -->
+        <div id="mRutaSection" style="border:1px solid var(--card-border);border-radius:8px;margin-bottom:0.6rem;overflow:hidden;">
+          <div style="padding:0.55rem 0.85rem;background:var(--bg);font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:0.4rem;">
+            <i class="bi bi-geo-alt"></i> Ruta logística
+          </div>
+          <div style="padding:0.75rem 0.85rem;display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1rem;font-size:0.82rem;" id="mRutaGrid"></div>
+        </div>
+
+        <!-- Remitente -->
+        <div id="mRemitenteSection" style="border:1px solid var(--card-border);border-radius:8px;margin-bottom:0.6rem;overflow:hidden;">
+          <div style="padding:0.55rem 0.85rem;background:var(--bg);font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:0.4rem;">
+            <i class="bi bi-shop"></i> Remitente
+          </div>
+          <div style="padding:0.75rem 0.85rem;display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1rem;font-size:0.82rem;" id="mRemitenteGrid"></div>
+        </div>
+      </div>
+
       <!-- Timeline de eventos -->
+      <div style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.65rem;display:flex;align-items:center;gap:0.4rem;">
+        <i class="bi bi-clock-history"></i> Historial de eventos
+      </div>
       <div id="mTimelineEmpty" style="display:none;text-align:center;padding:2rem;color:var(--text-secondary);">
         <i class="bi bi-info-circle" style="font-size:1.8rem;opacity:0.3;display:block;margin-bottom:0.5rem;"></i>
         Sin eventos registrados en la base de datos para este paquete.
@@ -941,6 +980,67 @@ document.querySelectorAll('.btn-jms-history').forEach(btn => {
         document.getElementById('mRecojoVal').textContent = data.fecha_recojo ? data.fecha_recojo.substring(0, 16) : '—';
         document.getElementById('mIntentosVal').textContent = data.n_intentos;
         document.getElementById('mGestionVal').textContent = data.ultima_gestion_at ? data.ultima_gestion_at.substring(0, 16) : '—';
+
+        // ── Helper para construir filas de detalle ──────────────────────
+        function mRow(label, value, fullWidth) {
+          if (!value && value !== 0) return '';
+          const style = fullWidth ? 'grid-column:1/-1;' : '';
+          return `<div style="${style}"><span style="color:var(--text-secondary);font-size:0.75rem;">${label}</span><div style="font-weight:500;margin-top:0.1rem;">${value}</div></div>`;
+        }
+
+        // ── Detalles del destinatario ───────────────────────────────────
+        const destiGrid = document.getElementById('mDestinatarioGrid');
+        let ubicacion = [data.destinatario_area, data.destinatario_ciudad, data.destinatario_provincia].filter(Boolean).join(', ');
+        destiGrid.innerHTML = [
+          mRow('Nombre', data.destinatario_nombre),
+          mRow('Teléfono', data.destinatario_telefono),
+          mRow('Ubicación', ubicacion || null),
+          mRow('CP', data.destinatario_cp),
+          mRow('Dirección', data.destinatario_direccion, true),
+        ].join('');
+
+        // ── Detalles del paquete ────────────────────────────────────────
+        const pkgGrid = document.getElementById('mPaqueteGrid');
+        let pesoStr = data.peso_cobrado ? data.peso_cobrado + ' kg' : null;
+        let pesoVolStr = data.peso_volumetrico ? data.peso_volumetrico + ' kg (vol.)' : null;
+        pkgGrid.innerHTML = [
+          mRow('Origen', data.origen_pedido),
+          mRow('Tipo mercancía', data.tipo_mercancia),
+          mRow('Descripción', data.nombre_mercancia),
+          mRow('Modo pago', data.modo_pago),
+          mRow('Tipo servicio', data.tipo_servicio),
+          mRow('Peso cobrado', pesoStr),
+          mRow('Peso volumétrico', pesoVolStr),
+          mRow('Cód. cliente', data.codigo_cliente),
+          mRow('Nombre cliente', data.nombre_cliente),
+          mRow('Cód. despacho', data.codigo_despacho),
+        ].join('');
+        document.getElementById('mPaqueteSection').style.display = pkgGrid.innerHTML.trim() ? '' : 'none';
+
+        // ── Ruta logística ──────────────────────────────────────────────
+        const rutaGrid = document.getElementById('mRutaGrid');
+        rutaGrid.innerHTML = [
+          mRow('PDV recojo', data.pdv_recojo),
+          mRow('PDV destino', data.pdv_destino),
+          mRow('Hub origen', data.hub_origen),
+          mRow('Hub destino', data.hub_destino),
+        ].join('');
+        document.getElementById('mRutaSection').style.display = rutaGrid.innerHTML.trim() ? '' : 'none';
+
+        // ── Remitente ───────────────────────────────────────────────────
+        const remGrid = document.getElementById('mRemitenteGrid');
+        let remUbicacion = [data.remitente_ciudad, data.remitente_provincia].filter(Boolean).join(', ');
+        remGrid.innerHTML = [
+          mRow('Nombre', data.remitente_nombre),
+          mRow('Teléfono', data.remitente_telefono),
+          mRow('Ubicación', remUbicacion || null),
+          mRow('Dirección', data.remitente_direccion, true),
+        ].join('');
+        document.getElementById('mRemitenteSection').style.display = remGrid.innerHTML.trim() ? '' : 'none';
+
+        // Mostrar sección de detalles si hay algo
+        const hayDetalle = destiGrid.innerHTML.trim() || pkgGrid.innerHTML.trim();
+        document.getElementById('mDetalles').style.display = hayDetalle ? '' : 'none';
 
         // Construir Timeline
         const timeline = document.getElementById('mTimeline');

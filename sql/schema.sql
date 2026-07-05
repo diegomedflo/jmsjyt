@@ -38,17 +38,52 @@ CREATE TABLE IF NOT EXISTS franquiciados (
 
 -- ── Paquetes ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS paquetes (
-    id                BIGSERIAL    PRIMARY KEY,
-    franquiciado_id   INTEGER      NOT NULL
-                      REFERENCES franquiciados(id) ON DELETE CASCADE,
-    waybill_no        VARCHAR(120) NOT NULL,
-    estado            VARCHAR(20)  NOT NULL DEFAULT 'pendiente'
-                      CHECK (estado IN ('pendiente','entregado','devuelto','cancelado')),
-    fecha_recojo      TIMESTAMPTZ,
-    n_intentos        SMALLINT     NOT NULL DEFAULT 0,
-    ultimo_intento_at TIMESTAMPTZ,
-    created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    id                     BIGSERIAL    PRIMARY KEY,
+    franquiciado_id        INTEGER      NOT NULL
+                           REFERENCES franquiciados(id) ON DELETE CASCADE,
+    waybill_no             VARCHAR(120) NOT NULL,
+    estado                 VARCHAR(20)  NOT NULL DEFAULT 'pendiente'
+                           CHECK (estado IN ('pendiente','entregado','devuelto','cancelado','siniestrado')),
+    fecha_recojo           TIMESTAMPTZ,
+    n_intentos             SMALLINT     NOT NULL DEFAULT 0,
+    ultimo_intento_at      TIMESTAMPTZ,
+    ultima_gestion_at      TIMESTAMPTZ,
+    -- Detalle del pedido (cargado una sola vez desde get_order_detail)
+    detalle_cargado        BOOLEAN      NOT NULL DEFAULT FALSE,
+    destinatario_nombre    VARCHAR(200),
+    destinatario_telefono  VARCHAR(50),
+    destinatario_provincia VARCHAR(100),
+    destinatario_ciudad    VARCHAR(100),
+    destinatario_area      VARCHAR(100),
+    destinatario_direccion VARCHAR(500),
+    peso_cobrado           DOUBLE PRECISION,
+    tipo_mercancia         VARCHAR(100),
+    modo_pago              VARCHAR(100),
+    origen_pedido          VARCHAR(100),
+    -- Remitente y códigos extra
+    remitente_nombre       VARCHAR(200),
+    remitente_telefono     VARCHAR(50),
+    remitente_provincia    VARCHAR(100),
+    remitente_ciudad       VARCHAR(100),
+    remitente_area         VARCHAR(100),
+    remitente_direccion    VARCHAR(500),
+    remitente_cp           VARCHAR(20),
+    codigo_cliente         VARCHAR(100),
+    nombre_cliente         VARCHAR(200),
+    codigo_despacho        VARCHAR(100),
+    pdv_destino            VARCHAR(200),
+    -- Destinatario (complemento)
+    destinatario_cp        VARCHAR(20),
+    -- Paquete (complemento)
+    nombre_mercancia       VARCHAR(200),       -- goodsName
+    tipo_servicio          VARCHAR(100),       -- expressTypeName
+    peso_volumetrico       DOUBLE PRECISION,   -- packageVolume (kg)
+    -- Ruta logística
+    pdv_recojo             VARCHAR(200),       -- realPickNetworkName
+    hub_origen             VARCHAR(200),       -- initDistributeName
+    hub_destino            VARCHAR(200),       -- destinationDistributeName
+    created_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_franq_waybill UNIQUE (franquiciado_id, waybill_no)
 );
 

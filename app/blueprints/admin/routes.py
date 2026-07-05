@@ -645,6 +645,33 @@ def paquete_tracking_historial(pkg_id: int):
         "fecha_recojo": pkg.fecha_recojo.strftime("%d/%m/%Y %H:%M:%S") if pkg.fecha_recojo else None,
         "ultimo_intento_at": pkg.ultimo_intento_at.strftime("%d/%m/%Y %H:%M:%S") if pkg.ultimo_intento_at else None,
         "ultima_gestion_at": pkg.ultima_gestion_at.strftime("%d/%m/%Y %H:%M:%S") if pkg.ultima_gestion_at else None,
+        # Destinatario
+        "destinatario_nombre":    pkg.destinatario_nombre,
+        "destinatario_telefono":  pkg.destinatario_telefono,
+        "destinatario_provincia": pkg.destinatario_provincia,
+        "destinatario_ciudad":    pkg.destinatario_ciudad,
+        "destinatario_area":      pkg.destinatario_area,
+        "destinatario_direccion": pkg.destinatario_direccion,
+        "destinatario_cp":        pkg.destinatario_cp,
+        # Paquete
+        "origen_pedido":    pkg.origen_pedido,
+        "tipo_mercancia":   pkg.tipo_mercancia,
+        "nombre_mercancia": pkg.nombre_mercancia,
+        "peso_cobrado":     pkg.peso_cobrado,
+        "peso_volumetrico": pkg.peso_volumetrico,
+        "modo_pago":        pkg.modo_pago,
+        "tipo_servicio":    pkg.tipo_servicio,
+        # Ruta
+        "pdv_recojo":  pkg.pdv_recojo,
+        "pdv_destino": pkg.pdv_destino,
+        "hub_origen":  pkg.hub_origen,
+        "hub_destino": pkg.hub_destino,
+        # Remitente
+        "remitente_nombre":    pkg.remitente_nombre,
+        "remitente_telefono":  pkg.remitente_telefono,
+        "remitente_provincia": pkg.remitente_provincia,
+        "remitente_ciudad":    pkg.remitente_ciudad,
+        "remitente_direccion": pkg.remitente_direccion,
         "historial": events_data
     }
 

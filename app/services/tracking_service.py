@@ -160,10 +160,25 @@ def _guardar_detalle(paquete: Paquete, detail) -> None:
     # Campos adicionales — misma llamada API, sin costo extra
     paquete.remitente_nombre       = s.name
     paquete.remitente_telefono     = s.phone
+    paquete.remitente_provincia    = s.province
+    paquete.remitente_ciudad       = s.city
+    paquete.remitente_area         = s.area
+    paquete.remitente_direccion    = s.address
+    paquete.remitente_cp           = s.postal_code
     paquete.codigo_cliente         = detail.customer_code
     paquete.nombre_cliente         = detail.customer_name
     paquete.codigo_despacho        = detail.third_code
     paquete.pdv_destino            = detail.route.dest_pdv
+    # Datos adicionales del destinatario
+    paquete.destinatario_cp        = r.postal_code
+    # Datos del paquete (complementarios)
+    paquete.nombre_mercancia       = detail.goods_name
+    paquete.tipo_servicio          = detail.express_type
+    paquete.peso_volumetrico       = detail.volume_weight
+    # Ruta logística
+    paquete.pdv_recojo             = detail.route.origin_pdv
+    paquete.hub_origen             = detail.route.origin_hub
+    paquete.hub_destino            = detail.route.dest_hub
     paquete.detalle_cargado        = True
 
 

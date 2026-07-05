@@ -3,16 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Portal JMSJyT — Acceder</title>
+  <title>JMSJyT Portal — Acceder</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" crossorigin="anonymous" />
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+        crossorigin="anonymous" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}" />
 </head>
 <body>
+
   <div class="login-page">
     <div class="login-card">
+
+      <!-- Header -->
       <div class="login-header">
         <div class="login-icon">
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -21,30 +26,62 @@
         </div>
         <span class="login-brand">JMSJyT Portal</span>
       </div>
-      <h2 class="login-title">Bienvenido,<br>inicia sesión</h2>
 
-      {% with msgs = get_flashed_messages(with_categories=true) %}
-        {% for cat, msg in msgs %}
-        <div style="margin-bottom:0.75rem;padding:0.6rem 0.85rem;border-radius:6px;font-size:0.85rem;
-                    background:{% if cat=='danger' %}#FEE2E2;color:#991B1B{% else %}#D1FAE5;color:#065F46{% endif %};">
-          {{ msg }}
+      <h2 class="login-title">Bienvenido,<br>inicia sesión ahora</h2>
+
+      <!-- Alertas -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="login-alert login-alert--{{ category }}">
+          <i class="bi bi-exclamation-circle me-1"></i>{{ message }}
         </div>
         {% endfor %}
       {% endwith %}
 
-      <form method="POST">
+      <!-- Formulario -->
+      <form method="POST" novalidate class="login-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-        <div class="form-group">
-          <label class="form-label">Usuario</label>
-          <input type="text" name="username" class="form-input" autocomplete="username" required autofocus />
+
+        <div class="form-field">
+          <label for="username">Usuario</label>
+          <div class="input-wrap">
+            <i class="bi bi-person input-icon"></i>
+            <input type="text" id="username" name="username"
+                   placeholder="tu_usuario" autocomplete="username" required autofocus />
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Contraseña</label>
-          <input type="password" name="password" class="form-input" autocomplete="current-password" required />
+
+        <div class="form-field">
+          <label for="password">Contraseña</label>
+          <div class="input-wrap">
+            <i class="bi bi-lock input-icon"></i>
+            <input type="password" id="password" name="password"
+                   placeholder="••••••••" autocomplete="current-password" required />
+            <button type="button" class="toggle-pw" tabindex="-1"
+                    onclick="togglePassword()">
+              <i class="bi bi-eye" id="eyeIcon"></i>
+            </button>
+          </div>
         </div>
-        <button type="submit" class="btn-login">Entrar</button>
+
+        <button type="submit" class="btn-login">Ingresar</button>
       </form>
+
     </div>
   </div>
+
+  <script>
+    function togglePassword() {
+      const input = document.getElementById('password');
+      const icon  = document.getElementById('eyeIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'bi bi-eye';
+      }
+    }
+  </script>
 </body>
 </html>

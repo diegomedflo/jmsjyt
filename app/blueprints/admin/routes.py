@@ -297,6 +297,80 @@ def franquiciados_toggle(fq_id: int):
     return redirect(url_for("admin.franquiciados_lista"))
 
 
+# ── Portal del franquiciado — gestión de usuario ──────────────────────────────
+
+@admin_bp.route("/franquiciados/<int:fq_id>/usuario-portal/guardar", methods=["POST"])
+@login_required
+def usuario_portal_guardar(fq_id: int):
+    from app.models.franquiciado_user import FranquiciadoUser
+    fq       = db.get_or_404(Franquiciado, fq_id)
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+    password2 = request.form.get("password2", "")
+
+    if not username:
+        flash("El nombre de usuario es obligatorio.", "danger")
+        return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+    if fq.usuario_portal is None and not password:
+        flash("La contraseña es obligatoria al crear el usuario.", "danger")
+        return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+    if password and password != password2:
+        flash("Las contraseñas no coinciden.", "danger")
+        return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+    # Verificar username único (excepto el propio usuario)
+    existing = FranquiciadoUser.query.filter_by(username=username).first()
+    if existing and existing.franquiciado_id != fq_id:
+        flash(f"El usuario «{username}» ya está en uso por otro franquiciado.", "danger")
+        return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+    if fq.usuario_portal is None:
+        user = FranquiciadoUser(franquiciado_id=fq_id, username=username)
+        user.set_password(password)
+        db.session.add(user)
+        flash(f"Usuario de portal «{username}» creado.", "success")
+    else:
+        fq.usuario_portal.username = username
+        if password:
+            fq.usuario_portal.set_password(password)
+            flash(f"Usuario «{username}» actualizado (contraseña cambiada).", "success")
+        else:
+            flash(f"Usuario «{username}» actualizado.", "success")
+
+    db.session.commit()
+    return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+
+@admin_bp.route("/franquiciados/<int:fq_id>/usuario-portal/toggle-dashboard", methods=["POST"])
+@login_required
+def usuario_portal_toggle_dashboard(fq_id: int):
+    fq = db.get_or_404(Franquiciado, fq_id)
+    if fq.usuario_portal is None:
+        flash("Este franquiciado no tiene usuario de portal.", "warning")
+        return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+    fq.usuario_portal.puede_ver_dashboard = not fq.usuario_portal.puede_ver_dashboard
+    db.session.commit()
+    estado = "habilitado" if fq.usuario_portal.puede_ver_dashboard else "deshabilitado"
+    flash(f"Acceso al dashboard {estado}.", "info")
+    return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+
+@admin_bp.route("/franquiciados/<int:fq_id>/usuario-portal/toggle-activo", methods=["POST"])
+@login_required
+def usuario_portal_toggle_activo(fq_id: int):
+    fq = db.get_or_404(Franquiciado, fq_id)
+    if fq.usuario_portal is None:
+        flash("Este franquiciado no tiene usuario de portal.", "warning")
+        return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+    fq.usuario_portal.activo = not fq.usuario_portal.activo
+    db.session.commit()
+    estado = "activado" if fq.usuario_portal.activo else "desactivado"
+    flash(f"Usuario de portal {estado}.", "info")
+    return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
+
+
 # ── Paquetes ─────────────────────────────────────────────────────────────────
 
 @admin_bp.route("/franquiciados/<int:fq_id>/paquetes/importar", methods=["GET", "POST"])

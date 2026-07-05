@@ -436,6 +436,101 @@
   </div>
 </div>
 
+<!-- ── Acceso Portal Franquiciado ────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:1.25rem;">
+  <div class="card-header">
+    <span class="card-title"><i class="bi bi-person-badge"></i> Acceso Portal Franquiciado</span>
+    {% if fq.usuario_portal %}
+    <a href="/franquiciado/{{ fq.id }}/portal" target="_blank"
+       class="btn btn-ghost btn-sm" style="font-size:0.78rem;">
+      <i class="bi bi-box-arrow-up-right"></i> Abrir portal
+    </a>
+    {% endif %}
+  </div>
+  <div class="card-body" style="padding:1rem;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+
+      <!-- Estado actual -->
+      <div style="border:1px solid var(--card-border);border-radius:10px;padding:1rem;">
+        <div style="font-weight:600;font-size:0.88rem;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem;">
+          <i class="bi bi-info-circle"></i> Estado actual
+        </div>
+        {% if fq.usuario_portal %}
+          {% set u = fq.usuario_portal %}
+          <div class="dl-grid" style="font-size:0.84rem;row-gap:0.5rem;">
+            <span class="dl-label">Usuario</span>
+            <span class="dl-value mono">{{ u.username }}</span>
+            <span class="dl-label">Estado</span>
+            <span class="dl-value">
+              <span class="badge {{ 'badge-green' if u.activo else 'badge-gray' }}">{{ 'Activo' if u.activo else 'Inactivo' }}</span>
+            </span>
+            <span class="dl-label">Dashboard</span>
+            <span class="dl-value">
+              <span class="badge {{ 'badge-green' if u.puede_ver_dashboard else 'badge-gray' }}">{{ 'Habilitado' if u.puede_ver_dashboard else 'Sin acceso' }}</span>
+            </span>
+            <span class="dl-label">Creado</span>
+            <span class="dl-value" style="font-size:0.8rem;">{{ u.created_at.strftime('%d/%m/%Y') }}</span>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.85rem;flex-wrap:wrap;">
+            <form method="POST" action="{{ url_for('admin.usuario_portal_toggle_dashboard', fq_id=fq.id) }}" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button type="submit" class="btn btn-sm {{ 'btn-outline' if u.puede_ver_dashboard else 'btn-primary' }}" style="font-size:0.78rem;">
+                <i class="bi bi-bar-chart-line"></i>
+                {{ 'Quitar dashboard' if u.puede_ver_dashboard else 'Habilitar dashboard' }}
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('admin.usuario_portal_toggle_activo', fq_id=fq.id) }}" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button type="submit" class="btn btn-sm {{ 'btn-danger' if u.activo else 'btn-ghost' }}" style="font-size:0.78rem;">
+                <i class="bi bi-{{ 'pause-fill' if u.activo else 'play-fill' }}"></i>
+                {{ 'Desactivar acceso' if u.activo else 'Activar acceso' }}
+              </button>
+            </form>
+          </div>
+        {% else %}
+          <p style="font-size:0.83rem;color:var(--text-secondary);margin:0;">
+            Este franquiciado no tiene usuario de portal creado aún.
+          </p>
+        {% endif %}
+      </div>
+
+      <!-- Crear / editar usuario -->
+      <div style="border:1px solid var(--card-border);border-radius:10px;padding:1rem;">
+        <div style="font-weight:600;font-size:0.88rem;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem;">
+          <i class="bi bi-person-plus"></i> {{ 'Editar usuario' if fq.usuario_portal else 'Crear usuario' }}
+        </div>
+        <form method="POST" action="{{ url_for('admin.usuario_portal_guardar', fq_id=fq.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <div style="display:flex;flex-direction:column;gap:0.55rem;">
+            <div>
+              <label style="font-size:0.78rem;color:var(--text-secondary);display:block;margin-bottom:0.25rem;">Usuario</label>
+              <input type="text" name="username" value="{{ fq.usuario_portal.username if fq.usuario_portal else '' }}"
+                     required autocomplete="off"
+                     style="width:100%;font-size:0.83rem;padding:0.35rem 0.6rem;border:1px solid var(--card-border);border-radius:6px;background:var(--bg);color:var(--text-primary);box-sizing:border-box;" />
+            </div>
+            <div>
+              <label style="font-size:0.78rem;color:var(--text-secondary);display:block;margin-bottom:0.25rem;">
+                Contraseña {% if fq.usuario_portal %}<span style="color:var(--text-muted);">(dejar vacío para no cambiar)</span>{% endif %}
+              </label>
+              <input type="password" name="password" autocomplete="new-password"
+                     style="width:100%;font-size:0.83rem;padding:0.35rem 0.6rem;border:1px solid var(--card-border);border-radius:6px;background:var(--bg);color:var(--text-primary);box-sizing:border-box;" />
+            </div>
+            <div>
+              <label style="font-size:0.78rem;color:var(--text-secondary);display:block;margin-bottom:0.25rem;">Confirmar contraseña</label>
+              <input type="password" name="password2" autocomplete="new-password"
+                     style="width:100%;font-size:0.83rem;padding:0.35rem 0.6rem;border:1px solid var(--card-border);border-radius:6px;background:var(--bg);color:var(--text-primary);box-sizing:border-box;" />
+            </div>
+            <button type="submit" class="btn btn-primary" style="font-size:0.83rem;margin-top:0.1rem;">
+              <i class="bi bi-floppy"></i> {{ 'Actualizar' if fq.usuario_portal else 'Crear usuario' }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- ── Comandos WhatsApp ──────────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:1.25rem;">
   <div class="card-header">

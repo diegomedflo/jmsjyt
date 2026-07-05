@@ -49,6 +49,8 @@ class Franquiciado(db.Model):
                                     lazy="dynamic", cascade="all, delete-orphan")
     alertas_log   = db.relationship("AlertaLog", back_populates="franquiciado",
                                     lazy="dynamic", cascade="all, delete-orphan")
+    usuario_portal = db.relationship("FranquiciadoUser", back_populates="franquiciado",
+                                     uselist=False, cascade="all, delete-orphan")
 
     # ── Helpers de token cache ──────────────────────────────────────────
     def get_token_cache(self) -> Optional[str]:

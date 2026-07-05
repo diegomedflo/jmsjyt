@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal · {{ fq.nombre }} — JMSJyT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+  <style>
+    /* Topbar del portal (sin sidebar) */
+    .portal-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 1.5rem;
+      background: var(--card-bg); border-bottom: 1px solid var(--card-border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .portal-brand { font-weight: 700; font-size: 1rem; color: var(--accent); display: flex; align-items: center; gap: 0.5rem; }
+    .portal-actions { display: flex; align-items: center; gap: 0.6rem; }
+    .portal-user { font-size: 0.82rem; color: var(--text-secondary); }
+    .portal-main { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem; }
+
+    /* Modal (igual que admin) */
+    .modal { display:none; position:fixed; inset:0; background:rgba(11,45,42,0.65); backdrop-filter:blur(4px); z-index:2000; align-items:center; justify-content:center; padding:1rem; }
+    .modal.visible { display:flex; }
+    .modal-content { background:var(--card-bg); border-radius:var(--radius-lg); box-shadow:var(--card-shadow); border:1px solid var(--card-border); width:100%; max-width:680px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; animation:modalFadeIn 0.22s cubic-bezier(0.16,1,0.3,1); }
+    @keyframes modalFadeIn { from{opacity:0;transform:translateY(12px) scale(0.98)} to{opacity:1;transform:none} }
+    .modal-header { padding:1.1rem 1.4rem; border-bottom:1px solid var(--card-border); display:flex; align-items:center; justify-content:space-between; }
+    .modal-title { font-size:1.05rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:0.5rem; }
+    .modal-close { background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:0; line-height:1; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; }
+    .modal-close:hover { background:var(--bg); color:var(--text-primary); }
+    .modal-body { padding:1.4rem; overflow-y:auto; flex:1; }
+    .tracking-timeline { position:relative; margin-left:0.5rem; padding-left:1.5rem; border-left:2px solid rgba(0,0,0,0.06); }
+    .tracking-item { position:relative; margin-bottom:1.4rem; }
+    .tracking-icon { position:absolute; left:calc(-1.5rem - 7px); top:4px; width:12px; height:12px; border-radius:50%; background:var(--text-muted); border:2px solid var(--card-bg); box-shadow:0 0 0 1px rgba(0,0,0,0.1); }
+    .tracking-item.recojo .tracking-icon { background:var(--accent); box-shadow:0 0 0 4px var(--accent-light); }
+    .tracking-item.fallido-1 .tracking-icon { background:#F59E0B; box-shadow:0 0 0 4px #FEF3C7; }
+    .tracking-item.fallido-2 .tracking-icon { background:#EF4444; box-shadow:0 0 0 4px #FEE2E2; }
+    .tracking-item.fallido-3 .tracking-icon { background:#B91C1C; box-shadow:0 0 0 4px #FCA5A5; }
+    .tracking-item.fallido-other .tracking-icon { background:#7F1D1D; box-shadow:0 0 0 4px #FEE2E2; }
+    .tracking-item.entregado .tracking-icon { background:var(--positive); box-shadow:0 0 0 4px var(--accent-light); }
+    .tracking-item.devuelto .tracking-icon { background:var(--negative); box-shadow:0 0 0 4px #FEE2E2; }
+    .tracking-time { font-size:0.76rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.15rem; display:flex; align-items:center; gap:0.5rem; }
+    .tracking-desc { font-size:0.84rem; color:var(--text-primary); line-height:1.45; }
+    .tracking-interp { font-size:0.78rem; color:var(--text-secondary); margin-top:0.25rem; font-style:italic; display:flex; align-items:center; gap:0.25rem; }
+    .badge-inline { font-size:0.65rem; padding:0.1rem 0.4rem; border-radius:4px; font-weight:700; text-transform:uppercase; }
+    .badge-recojo { background:var(--accent-light); color:var(--accent-dark); }
+    .badge-fallido-1 { background:#FEF3C7; color:#D97706; }
+    .badge-fallido-other { background:#FEE2E2; color:#B91C1C; }
+    .badge-entregado { background:#D1FAE5; color:#065F46; }
+    .badge-devuelto { background:#FEE2E2; color:#991B1B; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body style="background:var(--bg,#f5f5f0); margin:0;">
+
+<!-- ── Topbar ──────────────────────────────────────────────────────────────── -->
+<div class="portal-topbar">
+  <div class="portal-brand">
+    <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+      <path d="M20 8H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2zM6 13H4v-2h2v2zm14 0h-2v-2h2v2z"/>
+    </svg>
+    {{ fq.nombre }}
+  </div>
+  <div class="portal-actions">
+    {% if fq_user.puede_ver_dashboard %}
+    <a href="{{ url_for('franquiciado.dashboard', fq_id=fq.id) }}" class="btn btn-outline btn-sm">
+      <i class="bi bi-bar-chart-line"></i> Dashboard
+    </a>
+    {% endif %}
+    <span class="portal-user"><i class="bi bi-person-fill"></i> {{ fq_user.username }}</span>
+    <a href="{{ url_for('franquiciado.logout') }}" class="btn btn-ghost btn-sm">
+      <i class="bi bi-box-arrow-right"></i> Salir
+    </a>
+  </div>
+</div>
+
+<!-- ── Flash messages ─────────────────────────────────────────────────────── -->
+{% with msgs = get_flashed_messages(with_categories=true) %}
+  {% if msgs %}
+  <div style="padding:0.75rem 1.5rem 0;">
+    {% for cat, msg in msgs %}
+    <div class="flash flash-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+
+<div class="portal-main">
+
+  <!-- ── Configuración (solo Últ. tracking) ────────────────────────────── -->
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div class="card-header">
+      <span class="card-title"><i class="bi bi-sliders"></i> Configuración</span>
+    </div>
+    <div class="card-body">
+      <div class="dl-grid" style="max-width:300px;">
+        <span class="dl-label">Últ. tracking</span>
+        <span class="dl-value" style="font-size:0.85rem;">
+          {% if last_tracking_peru %}
+            {{ last_tracking_peru.strftime('%d/%m/%Y %H:%M') }} <span style="color:var(--text-secondary);">(hora Perú)</span>
+          {% else %}<span style="color:var(--text-secondary);">Nunca</span>{% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Fila: Importar texto + Comandos WA ────────────────────────────── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+
+    <!-- Importar texto -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="bi bi-plus-circle"></i> Agregar paquetes</span>
+      </div>
+      <div class="card-body" style="padding:1rem;">
+        <p style="font-size:0.8rem;color:var(--text-secondary);margin:0 0 0.75rem;">
+          Pega los códigos de guía (uno por línea o separados por comas).
+        </p>
+        <form method="POST" action="{{ url_for('franquiciado.importar_texto', fq_id=fq.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <textarea name="waybills" rows="5"
+                    style="width:100%;font-family:monospace;font-size:0.82rem;padding:0.5rem;border:1px solid var(--card-border);border-radius:6px;background:var(--bg);color:var(--text-primary);resize:vertical;box-sizing:border-box;"
+                    placeholder="JT123456789PE&#10;JT987654321PE&#10;..."></textarea>
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.65rem;font-size:0.85rem;">
+            <i class="bi bi-plus-lg"></i> Agregar paquetes
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Comandos WhatsApp -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="bi bi-whatsapp"></i> WhatsApp</span>
+      </div>
+      <div class="card-body" style="padding:1rem;display:flex;flex-direction:column;gap:0.65rem;">
+        <div style="font-weight:600;font-size:0.88rem;display:flex;align-items:center;gap:0.4rem;color:#25D366;">
+          <i class="bi bi-bar-chart-line"></i> Enviar resumen de estado
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;line-height:1.55;">
+          Envía al grupo WhatsApp el conteo actual de paquetes en tránsito, pendientes, devueltos y entregados.
+        </p>
+        <form method="POST" action="{{ url_for('franquiciado.wa_estado', fq_id=fq.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="btn btn-primary" style="width:100%;font-size:0.83rem;background:#25D366;border-color:#25D366;">
+            <i class="bi bi-send"></i> Enviar /estado al grupo
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Tabla de paquetes ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header" style="flex-wrap:wrap;gap:0.5rem;">
+      <span class="card-title">
+        <i class="bi bi-box-seam"></i> Paquetes
+        <span style="font-size:0.78rem;color:var(--text-secondary);font-weight:400;margin-left:0.4rem;">
+          — {{ pagination.total }} en total
+        </span>
+      </span>
+      <!-- Filtros por estado -->
+      <div style="display:flex;gap:0.3rem;flex-wrap:wrap;">
+        {% for est, label in [('','Todos'),('pendiente','Pendientes'),('entregado','Entregados'),('devuelto','Devueltos'),('cancelado','Cancelados')] %}
+        <a href="{{ url_for('franquiciado.portal', fq_id=fq.id, estado=est, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, q=q_waybill) }}"
+           class="btn btn-sm {{ 'btn-primary' if estado_filtro == est else 'btn-ghost' }}"
+           style="font-size:0.75rem;padding:0.2rem 0.6rem;">{{ label }}</a>
+        {% endfor %}
+      </div>
+      <!-- Búsqueda -->
+      <form method="GET" action="{{ url_for('franquiciado.portal', fq_id=fq.id) }}"
+            style="display:flex;align-items:center;gap:0.35rem;margin-left:auto;">
+        <input type="hidden" name="estado" value="{{ estado_filtro }}" />
+        <input type="hidden" name="campo_fecha" value="{{ campo_fecha }}" />
+        <input type="hidden" name="fecha_desde" value="{{ fecha_desde }}" />
+        <input type="hidden" name="fecha_hasta" value="{{ fecha_hasta }}" />
+        <input type="text" name="q" value="{{ q_waybill }}" placeholder="Buscar paquete…"
+               style="font-size:0.8rem;padding:0.25rem 0.6rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-primary);width:180px;" />
+        <button type="submit" class="btn btn-primary btn-sm" style="font-size:0.8rem;padding:0.25rem 0.55rem;">
+          <i class="bi bi-search"></i>
+        </button>
+        {% if q_waybill %}
+        <a href="{{ url_for('franquiciado.portal', fq_id=fq.id, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta) }}"
+           class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:0.25rem 0.4rem;">
+          <i class="bi bi-x-lg"></i>
+        </a>
+        {% endif %}
+      </form>
+    </div>
+
+    <!-- Filtro fechas -->
+    <form method="GET" action="{{ url_for('franquiciado.portal', fq_id=fq.id) }}"
+          style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:0.65rem 1rem;border-bottom:1px solid var(--card-border);background:var(--bg);">
+      <input type="hidden" name="estado" value="{{ estado_filtro }}" />
+      <input type="hidden" name="q" value="{{ q_waybill }}" />
+      <i class="bi bi-funnel" style="color:var(--text-secondary);font-size:0.85rem;"></i>
+      <select name="campo_fecha" style="font-size:0.8rem;padding:0.25rem 0.5rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-primary);cursor:pointer;">
+        <option value="">— Por fecha —</option>
+        <option value="recojo"    {% if campo_fecha=='recojo'    %}selected{% endif %}>Recojo</option>
+        <option value="gestion"   {% if campo_fecha=='gestion'   %}selected{% endif %}>Últ. gestión</option>
+        <option value="importado" {% if campo_fecha=='importado' %}selected{% endif %}>Importado</option>
+      </select>
+      <span style="color:var(--text-secondary);font-size:0.8rem;">desde</span>
+      <input type="date" name="fecha_desde" value="{{ fecha_desde }}"
+             style="font-size:0.8rem;padding:0.25rem 0.5rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-primary);" />
+      <span style="color:var(--text-secondary);font-size:0.8rem;">hasta</span>
+      <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}"
+             style="font-size:0.8rem;padding:0.25rem 0.5rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-primary);" />
+      <button type="submit" class="btn btn-primary btn-sm" style="font-size:0.8rem;padding:0.28rem 0.75rem;">
+        <i class="bi bi-search"></i> Filtrar
+      </button>
+      {% if campo_fecha or fecha_desde or fecha_hasta %}
+      <a href="{{ url_for('franquiciado.portal', fq_id=fq.id, estado=estado_filtro, q=q_waybill) }}"
+         class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:0.28rem 0.6rem;">
+        <i class="bi bi-x-circle"></i> Limpiar
+      </a>
+      {% endif %}
+    </form>
+
+    {% if paquetes %}
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Paquete</th>
+            <th style="text-align:center;width:100px;">Estado</th>
+            <th style="text-align:center;width:70px;">Int. fallidos</th>
+            <th style="width:100px;">Recojo</th>
+            <th style="width:105px;">Últ. intento fallido</th>
+            <th style="width:130px;">Última gestión</th>
+            <th style="width:190px;">Detalles cliente</th>
+            <th style="text-align:center;width:60px;">Historial</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set badgecls = {'pendiente':'badge-yellow','entregado':'badge-green','devuelto':'badge-red','cancelado':'badge-gray','siniestrado':'badge-orange'} %}
+          {% for pkg in paquetes %}
+          <tr>
+            <td>
+              <span style="font-family:monospace;font-size:0.83rem;letter-spacing:0.02em;">{{ pkg.waybill_no }}</span>
+            </td>
+            <td style="text-align:center;">
+              <span class="badge {{ badgecls.get(pkg.estado, 'badge-gray') }}">{{ pkg.estado }}</span>
+            </td>
+            <td style="text-align:center;color:var(--text-secondary);font-size:0.85rem;">{{ pkg.n_intentos }}</td>
+            <td style="color:var(--text-muted);white-space:nowrap;font-size:0.8rem;">
+              {{ pkg.fecha_recojo.strftime('%d/%m/%y %H:%M') if pkg.fecha_recojo else '—' }}
+            </td>
+            <td style="color:var(--text-muted);white-space:nowrap;font-size:0.8rem;">
+              {{ pkg.ultimo_intento_at.strftime('%d/%m/%y %H:%M') if pkg.ultimo_intento_at else '—' }}
+            </td>
+            <td style="white-space:nowrap;font-size:0.8rem;">
+              {% if pkg.ultima_gestion_at %}
+                <span style="color:var(--text-muted);">{{ pkg.ultima_gestion_at.strftime('%d/%m/%y %H:%M') }}</span>
+                {% if pkg.estado == 'pendiente' %}
+                  {% set delta_h = ((now - pkg.ultima_gestion_at).total_seconds() / 3600) | round(0, 'floor') | int %}
+                  {% if delta_h < 1 %}<span style="color:var(--accent);font-size:0.75rem;"> hace &lt;1h</span>
+                  {% elif delta_h < 24 %}<span style="color:var(--warning);font-size:0.75rem;"> hace {{ delta_h }}h</span>
+                  {% else %}{% set delta_d = (delta_h / 24) | round(0,'floor') | int %}<span style="color:var(--negative);font-size:0.75rem;"> hace {{ delta_d }}d</span>{% endif %}
+                {% endif %}
+              {% else %}<span style="color:var(--text-muted);">—</span>{% endif %}
+            </td>
+            <td style="font-size:0.79rem;line-height:1.45;">
+              {% if pkg.detalle_cargado %}
+                {% if pkg.destinatario_nombre %}
+                <div style="font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:175px;" title="{{ pkg.destinatario_nombre }}">{{ pkg.destinatario_nombre }}</div>
+                {% endif %}
+                {% if pkg.destinatario_telefono %}
+                <div style="color:var(--text-secondary);font-size:0.74rem;"><i class="bi bi-telephone" style="margin-right:2px;"></i>{{ pkg.destinatario_telefono }}</div>
+                {% endif %}
+                {% set ubicacion = [pkg.destinatario_area, pkg.destinatario_ciudad, pkg.destinatario_provincia] | select | list | join(', ') %}
+                {% if ubicacion %}
+                <div style="color:var(--text-muted);font-size:0.73rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:175px;" title="{{ ubicacion }}"><i class="bi bi-geo-alt" style="margin-right:2px;"></i>{{ ubicacion }}</div>
+                {% endif %}
+                {% if pkg.destinatario_direccion %}
+                <div style="color:var(--text-muted);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:175px;" title="{{ pkg.destinatario_direccion }}">{{ pkg.destinatario_direccion }}</div>
+                {% endif %}
+                {% if pkg.origen_pedido %}
+                <span style="display:inline-block;margin-top:3px;font-size:0.68rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:4px;background:var(--accent-light);color:var(--accent-dark);">{{ pkg.origen_pedido }}</span>
+                {% endif %}
+              {% else %}
+                <span style="color:var(--text-muted);font-size:0.75rem;">—</span>
+              {% endif %}
+            </td>
+            <td style="text-align:center;">
+              <button type="button" class="btn btn-sm btn-icon btn-jms-history"
+                      data-pkg-id="{{ pkg.id }}"
+                      title="Ver Historial"
+                      style="border:1px solid var(--accent);color:var(--accent);background:none;border-radius:6px;padding:0.2rem 0.4rem;display:inline-flex;align-items:center;justify-content:center;height:28px;width:28px;margin:0 auto;">
+                <i class="bi bi-clock-history"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginación -->
+    {% if pagination.pages > 1 %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border-top:1px solid var(--card-border);">
+      <span style="font-size:0.8rem;color:var(--text-secondary);">{{ pagination.first }}–{{ pagination.last }} de {{ pagination.total }}</span>
+      <div style="display:flex;gap:0.25rem;align-items:center;">
+        {% if pagination.has_prev %}
+        <a href="{{ url_for('franquiciado.portal', fq_id=fq.id, page=pagination.prev_num, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, q=q_waybill) }}"
+           class="btn btn-ghost btn-sm" style="padding:0.2rem 0.5rem;"><i class="bi bi-chevron-left"></i></a>
+        {% endif %}
+        {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if p %}
+          <a href="{{ url_for('franquiciado.portal', fq_id=fq.id, page=p, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, q=q_waybill) }}"
+             class="btn btn-sm {{ 'btn-primary' if p == pagination.page else 'btn-ghost' }}"
+             style="padding:0.2rem 0.5rem;min-width:30px;text-align:center;">{{ p }}</a>
+          {% else %}
+          <span style="color:var(--text-secondary);padding:0 0.15rem;">…</span>
+          {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+        <a href="{{ url_for('franquiciado.portal', fq_id=fq.id, page=pagination.next_num, estado=estado_filtro, campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, q=q_waybill) }}"
+           class="btn btn-ghost btn-sm" style="padding:0.2rem 0.5rem;"><i class="bi bi-chevron-right"></i></a>
+        {% endif %}
+      </div>
+      <span style="font-size:0.8rem;color:var(--text-secondary);">Pág. {{ pagination.page }}/{{ pagination.pages }}</span>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div style="padding:2.5rem;text-align:center;color:var(--text-secondary);">
+      <i class="bi bi-box-seam" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:0.5rem;"></i>
+      Sin paquetes{% if q_waybill %} con código <strong>{{ q_waybill }}</strong>{% elif estado_filtro %} con estado <strong>{{ estado_filtro }}</strong>{% endif %}.
+    </div>
+    {% endif %}
+  </div>
+
+</div><!-- /.portal-main -->
+
+<!-- ── Modal Historial ────────────────────────────────────────────────────── -->
+<div id="jmsHistoryModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 class="modal-title">
+        <i class="bi bi-clock-history" style="color:var(--accent);"></i>
+        Historial: <span id="mWaybill" style="font-family:monospace;font-weight:600;">—</span>
+      </h3>
+      <button type="button" class="modal-close" onclick="document.getElementById('jmsHistoryModal').classList.remove('visible')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="mResumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.75rem;margin-bottom:1rem;padding:0.85rem;background:var(--bg);border-radius:6px;font-size:0.82rem;">
+        <div><strong style="color:var(--text-secondary);display:block;margin-bottom:0.15rem;">Estado:</strong><span id="mEstadoBadge" class="badge badge-gray">—</span></div>
+        <div><strong style="color:var(--text-secondary);display:block;margin-bottom:0.15rem;">Recojo:</strong><span id="mRecojoVal" style="font-weight:500;">—</span></div>
+        <div><strong style="color:var(--text-secondary);display:block;margin-bottom:0.15rem;">Intentos fallidos:</strong><span id="mIntentosVal" style="font-weight:500;">—</span></div>
+        <div><strong style="color:var(--text-secondary);display:block;margin-bottom:0.15rem;">Última gestión:</strong><span id="mGestionVal" style="font-weight:500;">—</span></div>
+      </div>
+      <div style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.65rem;">
+        <i class="bi bi-clock-history"></i> Historial de eventos
+      </div>
+      <div id="mTimelineEmpty" style="display:none;text-align:center;padding:2rem;color:var(--text-secondary);">
+        Sin eventos registrados.
+      </div>
+      <div id="mTimeline" class="tracking-timeline"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('jmsHistoryModal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('visible');
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') document.getElementById('jmsHistoryModal').classList.remove('visible');
+});
+
+document.querySelectorAll('.btn-jms-history').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const pkgId = this.getAttribute('data-pkg-id');
+    const orig  = this.innerHTML;
+    this.innerHTML = '<span style="width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.85s linear infinite;"></span>';
+    this.disabled = true;
+
+    fetch(`/franquiciado/{{ fq.id }}/paquetes/${pkgId}/tracking-historial`)
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => {
+        this.innerHTML = orig; this.disabled = false;
+        document.getElementById('mWaybill').textContent = data.waybill_no;
+        const badge = document.getElementById('mEstadoBadge');
+        badge.textContent = data.estado; badge.className = 'badge';
+        const cls = {pendiente:'badge-yellow',entregado:'badge-green',devuelto:'badge-red',cancelado:'badge-gray',siniestrado:'badge-orange'};
+        badge.classList.add(cls[data.estado] || 'badge-gray');
+        document.getElementById('mRecojoVal').textContent = data.fecha_recojo ? data.fecha_recojo.substring(0,16) : '—';
+        document.getElementById('mIntentosVal').textContent = data.n_intentos;
+        document.getElementById('mGestionVal').textContent = data.ultima_gestion_at ? data.ultima_gestion_at.substring(0,16) : '—';
+        const tl = document.getElementById('mTimeline');
+        tl.innerHTML = '';
+        if (!data.historial || !data.historial.length) {
+          document.getElementById('mTimelineEmpty').style.display = 'block';
+          tl.style.display = 'none';
+        } else {
+          document.getElementById('mTimelineEmpty').style.display = 'none';
+          tl.style.display = 'block';
+          data.historial.forEach(ev => {
+            const item = document.createElement('div');
+            item.className = 'tracking-item' + (ev.class ? ' ' + ev.class : '');
+            let lbl = '';
+            if (ev.label) {
+              const bc = {recojo:'badge-recojo','fallido-1':'badge-fallido-1','fallido-2':'badge-fallido-other','fallido-3':'badge-fallido-other','fallido-other':'badge-fallido-other',entregado:'badge-entregado',devuelto:'badge-devuelto'};
+              lbl = `<span class="badge badge-inline ${bc[ev.class]||'badge-gray'}" style="margin-left:0.5rem;font-size:0.6rem;">${ev.label}</span>`;
+            }
+            if (ev.es_gestion) lbl += `<span class="badge badge-inline" style="margin-left:0.4rem;font-size:0.6rem;background:#DBEAFE;color:#1E40AF;">Gestión</span>`;
+            item.innerHTML = `<div class="tracking-icon"></div><div class="tracking-time"><span>${ev.hora_escaneo}</span>${lbl}</div><div class="tracking-desc">${ev.descripcion||'—'}</div><div class="tracking-interp"><i class="bi bi-info-circle"></i> ${ev.interpretacion||'—'}</div>`;
+            tl.appendChild(item);
+          });
+        }
+        document.getElementById('jmsHistoryModal').classList.add('visible');
+      })
+      .catch(() => { this.innerHTML = orig; this.disabled = false; alert('No se pudo cargar el historial.'); });
+  });
+});
+</script>
+</body>
+</html>

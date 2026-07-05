@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal JMSJyT — Acceder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}" />
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 8H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2zM6 13H4v-2h2v2zm14 0h-2v-2h2v2z"/>
+          </svg>
+        </div>
+        <span class="login-brand">JMSJyT Portal</span>
+      </div>
+      <h2 class="login-title">Bienvenido,<br>inicia sesión</h2>
+
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in msgs %}
+        <div style="margin-bottom:0.75rem;padding:0.6rem 0.85rem;border-radius:6px;font-size:0.85rem;
+                    background:{% if cat=='danger' %}#FEE2E2;color:#991B1B{% else %}#D1FAE5;color:#065F46{% endif %};">
+          {{ msg }}
+        </div>
+        {% endfor %}
+      {% endwith %}
+
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="form-group">
+          <label class="form-label">Usuario</label>
+          <input type="text" name="username" class="form-input" autocomplete="username" required autofocus />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contraseña</label>
+          <input type="password" name="password" class="form-input" autocomplete="current-password" required />
+        </div>
+        <button type="submit" class="btn-login">Entrar</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

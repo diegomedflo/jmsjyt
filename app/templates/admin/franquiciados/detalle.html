@@ -769,16 +769,8 @@
         </div>
       </div>
 
-      <!-- Detalles cliente + paquete + ruta (acordeón simple) -->
+      <!-- Detalles paquete + ruta + remitente -->
       <div id="mDetalles" style="display:none;margin-bottom:1rem;">
-
-        <!-- Destinatario -->
-        <div style="border:1px solid var(--card-border);border-radius:8px;margin-bottom:0.6rem;overflow:hidden;">
-          <div style="padding:0.55rem 0.85rem;background:var(--bg);font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:0.4rem;">
-            <i class="bi bi-person"></i> Detalles cliente
-          </div>
-          <div style="padding:0.75rem 0.85rem;display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1rem;font-size:0.82rem;" id="mDestinatarioGrid"></div>
-        </div>
 
         <!-- Paquete -->
         <div id="mPaqueteSection" style="border:1px solid var(--card-border);border-radius:8px;margin-bottom:0.6rem;overflow:hidden;">
@@ -995,17 +987,6 @@ document.querySelectorAll('.btn-jms-history').forEach(btn => {
           return `<div style="${style}"><span style="color:var(--text-secondary);font-size:0.75rem;">${label}</span><div style="font-weight:500;margin-top:0.1rem;">${value}</div></div>`;
         }
 
-        // ── Detalles del destinatario ───────────────────────────────────
-        const destiGrid = document.getElementById('mDestinatarioGrid');
-        let ubicacion = [data.destinatario_area, data.destinatario_ciudad, data.destinatario_provincia].filter(Boolean).join(', ');
-        destiGrid.innerHTML = [
-          mRow('Nombre', data.destinatario_nombre),
-          mRow('Teléfono', data.destinatario_telefono),
-          mRow('Ubicación', ubicacion || null),
-          mRow('CP', data.destinatario_cp),
-          mRow('Dirección', data.destinatario_direccion, true),
-        ].join('');
-
         // ── Detalles del paquete ────────────────────────────────────────
         const pkgGrid = document.getElementById('mPaqueteGrid');
         let pesoStr = data.peso_cobrado ? data.peso_cobrado + ' kg' : null;
@@ -1046,7 +1027,7 @@ document.querySelectorAll('.btn-jms-history').forEach(btn => {
         document.getElementById('mRemitenteSection').style.display = remGrid.innerHTML.trim() ? '' : 'none';
 
         // Mostrar sección de detalles si hay algo
-        const hayDetalle = destiGrid.innerHTML.trim() || pkgGrid.innerHTML.trim();
+        const hayDetalle = pkgGrid.innerHTML.trim() || rutaGrid.innerHTML.trim() || remGrid.innerHTML.trim();
         document.getElementById('mDetalles').style.display = hayDetalle ? '' : 'none';
 
         // Construir Timeline

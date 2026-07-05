@@ -279,7 +279,11 @@ def refrescar_franquiciado(
                         progress_callback(_done, _total, pkg.waybill_no, "omitido")
                     continue
 
-            include_detail = not pkg.detalle_cargado
+            # Re-fetch detail si no fue cargado aún, o si fue cargado con un
+            # schema anterior a v2.3 (pdv_recojo y tipo_servicio serían NULL).
+            include_detail = not pkg.detalle_cargado or (
+                pkg.pdv_recojo is None and pkg.tipo_servicio is None
+            )
             result = tracker.track(pkg.waybill_no, include_detail=include_detail)
             _dur = _time.monotonic() - _t0
             stats["consultados"] += 1
@@ -419,7 +423,11 @@ def refrescar_lote_stream(
         _entregado = False
         _devuelto  = False
         try:
-            include_detail = not pkg.detalle_cargado
+            # Re-fetch detail si no fue cargado aún, o si fue cargado con un
+            # schema anterior a v2.3 (pdv_recojo y tipo_servicio serían NULL).
+            include_detail = not pkg.detalle_cargado or (
+                pkg.pdv_recojo is None and pkg.tipo_servicio is None
+            )
             result = tracker.track(pkg.waybill_no, include_detail=include_detail)
             stats["consultados"] += 1
 

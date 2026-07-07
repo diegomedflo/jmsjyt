@@ -51,9 +51,14 @@ HORAS_TRANSITO_SKIP = 4
 # Eventos que NO deben matchear (Descarga en nodos intermedios):
 #   - "Llegada del paquete 【Callao.SC】 Parada anterior 【HQ.LIM】"     → destino no es .pdv
 #   - "Llegada del paquete 【AREQUIPA.Cedis】 Parada anterior 【Callao.SC】" → destino no es .pdv
+#
+# J&T no es consistente con las mayúsculas del hub: se vio "AREQUIPA.Cedis" y
+# "AREQUIPA.CEDIS" en llamadas distintas para el mismo tipo de evento (verificado
+# 2026-07-06, franquiciado Omar 04005: 262/622 eventos venían en "CEDIS"). Por
+# eso la descripción se normaliza a minúsculas antes de matchear (ver _es_recojo_almacen).
 
-_RE_PDV_DEST    = re.compile(r"Llegada del paquete\s*【[^】]*\.pdv[^】]*】")
-_RE_CEDIS_PARADA = re.compile(r"Parada anterior\s*【[^】]*\.Cedis[^】]*】")
+_RE_PDV_DEST    = re.compile(r"llegada del paquete\s*【[^】]*\.pdv[^】]*】")
+_RE_CEDIS_PARADA = re.compile(r"parada anterior\s*【[^】]*\.cedis[^】]*】")
 
 # --- Detección de gestiones (cualquier acción del motorizado o asignación) ---
 _RE_MENSAJERO    = re.compile(r"su mensajero\s*【(.+?)】")
@@ -97,7 +102,7 @@ def _es_recojo_almacen(descripcion: str, tipo_escaneo: str = "") -> bool:
     Ambas condiciones deben cumplirse simultáneamente para evitar falsos
     positivos en descargas en nodos intermedios (Callao.SC, AREQUIPA.Cedis, etc.).
     """
-    desc = (descripcion or "").strip()
+    desc = (descripcion or "").strip().lower()
     return bool(_RE_PDV_DEST.search(desc) and _RE_CEDIS_PARADA.search(desc))
 
 

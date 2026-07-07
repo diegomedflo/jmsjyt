@@ -80,9 +80,13 @@ class OutletMonitor:
             start_date: "YYYY-MM-DD" — por defecto: hace 30 días.
             end_date:   "YYYY-MM-DD" — por defecto: hoy.
             time_type:  0 = fecha de creación del pedido (sin datos en rango típico),
-                        1 = fecha de generación de datos (default portal),
-                        2 = fecha de llegada al nodo (confirmado 2026-07-04),
-                        3 = dimensión adicional desconocida.
+                        1 = fecha de generación de datos (default portal — RECOMENDADO,
+                            único que da resultados estables/completos: verificado
+                            2026-07-06 con match exacto 131/131 contra export manual),
+                        2 = fecha de llegada al nodo — NO USAR: el campo es inestable
+                            en el backend de J&T, dos llamadas idénticas seguidas
+                            devuelven conjuntos casi totalmente distintos de guías,
+                        3 = dimensión adicional — trae superset con ruido de otros días.
 
         Returns:
             Lista de strings con los números de guía (ej. "JPE000008162174").

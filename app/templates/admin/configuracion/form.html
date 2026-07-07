@@ -99,16 +99,16 @@
               <label class="form-label">Tipo de fecha (timeType)</label>
               <select name="sync_time_type" class="form-control">
                 <option value="1" {% if form.sync_time_type.data == 1 %}selected{% endif %}>
-                  1 — Fecha de generación de datos (default)
+                  1 — Fecha de generación de datos (recomendado)
                 </option>
                 <option value="2" {% if form.sync_time_type.data == 2 %}selected{% endif %}>
-                  2 — Fecha de llegada al nodo
+                  2 — Fecha de llegada al nodo (inestable, no usar)
                 </option>
                 <option value="0" {% if form.sync_time_type.data == 0 %}selected{% endif %}>
                   0 — Fecha de creación del pedido
                 </option>
               </select>
-              <span class="form-hint">Equivale al filtro "Dimensión de datos" del portal JMS</span>
+              <span class="form-hint">Equivale al filtro "Dimensión de datos" del portal JMS. Verificado 2026-07-06: solo la opción 1 da resultados completos y estables.</span>
               {% if form.sync_time_type.errors %}<span class="form-error">{{ form.sync_time_type.errors[0] }}</span>{% endif %}
             </div>
           </div>

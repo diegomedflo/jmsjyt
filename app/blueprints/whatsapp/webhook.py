@@ -32,7 +32,8 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import func
 
-from flask import current_app, request
+from flask import current_app, jsonify, request
+from flask_login import login_required
 
 from app.extensions import csrf, db
 from app.models import Franquiciado, Paquete
@@ -46,6 +47,11 @@ logger = logging.getLogger(__name__)
 PERU_UTC_OFFSET = timedelta(hours=5)
 # Tiempo máximo de espera para /agregar (segundos)
 AGREGAR_TIMEOUT_SEC = 120
+
+# Buffer en memoria de los últimos N eventos recibidos por el webhook.
+# Se reinicia con cada redeploy; suficiente para depurar / identificar IDs de grupo.
+_MAX_EVENTOS = 50
+_wa_eventos: list[dict] = []
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -408,6 +414,17 @@ def webhook():
 
     print(f"[WA_WEBHOOK] method={request.method} sender={sender_phone!r} group_jid={group_jid!r} reply_to={reply_to!r} message={message[:80]!r}", flush=True)
 
+    # ── Registrar evento en el buffer de depuración ───────────────────────
+    _wa_eventos.append({
+        "from":    sender_phone,
+        "to":      group_jid,
+        "type":    data.get("type", ""),
+        "message": message,
+        "raw":     data,
+    })
+    if len(_wa_eventos) > _MAX_EVENTOS:
+        _wa_eventos.pop(0)
+
     if not reply_to or not message:
         print(f"[WA_WEBHOOK] ABORTANDO — reply_to o message vacíos.", flush=True)
         return "ok", 200
@@ -448,3 +465,17 @@ def webhook():
     # Ignorar silenciosamente cualquier otro comando
 
     return "ok", 200
+
+
+@whatsapp_bp.route("/whatsapp/eventos")
+@login_required
+def eventos():
+    """Muestra los últimos mensajes recibidos por el webhook de WhatsApp.
+
+    Útil para identificar el ID de un grupo o depurar mensajes entrantes.
+    Acceder en: /webhook/whatsapp/eventos (requiere sesión de admin).
+    """
+    return jsonify({
+        "total": len(_wa_eventos),
+        "eventos": list(reversed(_wa_eventos)),
+    }), 200

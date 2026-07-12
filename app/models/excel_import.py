@@ -25,6 +25,9 @@ class ExcelImport(db.Model):
     total_waybills  = db.Column(db.Integer, nullable=False, default=0)
     nuevos          = db.Column(db.Integer, nullable=False, default=0)
     duplicados      = db.Column(db.Integer, nullable=False, default=0)
+    # Waybills descartados por no coincidir con la red esperada del franquiciado
+    # (ver WaybillRechazado — solo se llena en imports desde el scraper OutletMonitor).
+    rechazados      = db.Column(db.Integer, nullable=False, default=0)
     # 'manual' = subido por el admin | 'auto' = obtenido por el scraper
     import_mode     = db.Column(db.String(20), nullable=False, default="manual")
     imported_at     = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)

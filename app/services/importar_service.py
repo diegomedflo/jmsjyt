@@ -115,14 +115,24 @@ def import_waybills(
     filename: str,
     drive_file_id: Optional[str] = None,
     import_mode: str = "manual",
+    rechazados: int = 0,
 ) -> dict:
     """Inserta los waybills en la BD evitando duplicados y registra el log.
 
-    Retorna un dict con: nuevos, duplicados, total, import_id, drive_file_id.
+    Args:
+        rechazados: cantidad de waybills descartados previamente por no
+            coincidir con la red esperada del franquiciado (ver
+            app.services.red_verificacion.registrar_rechazados). Solo se
+            usa para dejar constancia en el log de importación.
+
+    Retorna un dict con: nuevos, duplicados, total, rechazados, import_id, drive_file_id.
     """
     if not waybills:
         logger.warning("[importar] Lista de waybills vacía — nada que importar")
-        return {"nuevos": 0, "duplicados": 0, "total": 0, "import_id": None, "drive_file_id": drive_file_id}
+        return {
+            "nuevos": 0, "duplicados": 0, "total": 0, "rechazados": rechazados,
+            "import_id": None, "drive_file_id": drive_file_id,
+        }
 
     # Obtener los que ya existen en la BD de una sola consulta
     existing = set(
@@ -160,6 +170,7 @@ def import_waybills(
         total_waybills=len(waybills),
         nuevos=nuevos,
         duplicados=duplicados,
+        rechazados=rechazados,
         import_mode=import_mode,
     )
     db.session.add(import_log)
@@ -167,12 +178,13 @@ def import_waybills(
 
     logger.info(
         f"[importar] franq={franquiciado_id} nuevos={nuevos} "
-        f"dup={duplicados} total={len(waybills)} mode={import_mode!r}"
+        f"dup={duplicados} rechazados={rechazados} total={len(waybills)} mode={import_mode!r}"
     )
     return {
         "nuevos":        nuevos,
         "duplicados":    duplicados,
         "total":         len(waybills),
+        "rechazados":    rechazados,
         "import_id":     import_log.id,
         "drive_file_id": drive_file_id,
     }

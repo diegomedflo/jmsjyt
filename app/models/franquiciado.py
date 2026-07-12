@@ -24,6 +24,12 @@ class Franquiciado(db.Model):
     jt_user            = db.Column(db.String(120), nullable=False)
     jt_pass            = db.Column(db.String(255), nullable=False)
     jt_token_cache     = db.Column(JSONB, nullable=True)
+    # Código de red/PDV en JMS (ej. "ARE-22") — segunda capa de verificación:
+    # el filtro `recevierNetworkCode` de la API de J&T (ver outlet_monitor.py)
+    # no siempre es confiable, así que cada waybill obtenido por el scraper se
+    # contrasta contra este código antes de asociarlo a este franquiciado.
+    # Vacío = verificación deshabilitada para este franquiciado.
+    jt_network_code    = db.Column(db.String(50), nullable=True)
     wa_grupo_id        = db.Column(db.String(120), nullable=False)
     wa_status_grupo_id = db.Column(db.String(120), nullable=True)
     textmebot_api_key  = db.Column(db.String(120), nullable=False)

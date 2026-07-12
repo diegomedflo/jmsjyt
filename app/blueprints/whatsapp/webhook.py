@@ -182,6 +182,7 @@ def _run_importar_bg(app, franquiciado_id: int, group_id: str) -> None:
     with app.app_context():
         from app.models import Franquiciado as F
         from app.services.importar_service import import_waybills
+        from app.services.red_verificacion import registrar_rechazados
         from jt_scraper.outlet_monitor import OutletMonitor
         from jt_scraper.instance_config import JTInstanceConfig
 
@@ -210,18 +211,32 @@ def _run_importar_bg(app, franquiciado_id: int, group_id: str) -> None:
                 token_getter=franquiciado.get_token_cache,
                 token_setter=lambda v: _persist_token(franquiciado, v),
             )
-            monitor = OutletMonitor(cfg)
+            monitor = OutletMonitor(cfg, expected_network=franquiciado.jt_network_code)
             waybills = monitor.fetch_waybills(
                 start_date=start_date,
                 end_date=end_date,
                 time_type=sync_cfg.sync_time_type,
             )
+            rechazados = registrar_rechazados(franquiciado.id, monitor.last_rejected)
+
+            if monitor.contamination_alert:
+                _send(
+                    f"🚨 Importación DETENIDA — {monitor.contamination_ratio:.0%} de lo devuelto "
+                    f"por JMS no coincide con tu red esperada ({franquiciado.jt_network_code}). "
+                    "El filtro de J&T probablemente falló por completo esta vez. "
+                    "No se importó nada — avisa al admin."
+                )
+                return
 
             if not waybills:
+                extra = (
+                    f"\n({rechazados} descartado(s) por red no coincidente — ver auditoría)"
+                    if rechazados else ""
+                )
                 _send(
                     f"⚠️ No se encontraron paquetes en JMS para el rango consultado "
                     f"({start_date} → {end_date}).\n"
-                    "Verifica que tengas paquetes asignados en ese período."
+                    "Verifica que tengas paquetes asignados en ese período." + extra
                 )
                 return
 
@@ -230,13 +245,15 @@ def _run_importar_bg(app, franquiciado_id: int, group_id: str) -> None:
                 waybills=waybills,
                 filename="wa_importar",
                 import_mode="wa_command",
+                rechazados=rechazados,
             )
             msg = (
                 f"✅ *Importación completada*\n"
                 f"• Paquetes nuevos: *{result['nuevos']}*\n"
                 f"• Duplicados (ya existían): *{result['duplicados']}*\n"
-                f"• Total procesados: *{result['total']}*\n\n"
-                f"_Usa /estado para ver el resumen actualizado._"
+                f"• Total procesados: *{result['total']}*\n"
+                + (f"• ⚠️ Descartados (red no coincidente): *{rechazados}*\n" if rechazados else "")
+                + f"\n_Usa /estado para ver el resumen actualizado._"
             )
             _send(msg)
 

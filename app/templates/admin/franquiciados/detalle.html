@@ -269,6 +269,62 @@
   </div>
 </div>
 
+{% if not fq.jt_network_code %}
+<div class="card" style="margin-bottom:1.25rem;border-left:4px solid #D97706;background:#FEF3C7;">
+  <div class="card-body" style="padding:0.75rem 1rem;font-size:0.85rem;color:#92400E;">
+    <i class="bi bi-shield-exclamation"></i>
+    Este franquiciado no tiene <strong>Código de red JMS (ARE)</strong> configurado — la segunda
+    capa de verificación anti-contaminación cruzada está deshabilitada para él.
+    <a href="{{ url_for('admin.franquiciados_editar', fq_id=fq.id) }}" style="color:#92400E;text-decoration:underline;">Configurarlo ahora</a>.
+  </div>
+</div>
+{% elif sospechosos_count %}
+<div class="card" style="margin-bottom:1.25rem;border-left:4px solid #B91C1C;background:#FEE2E2;">
+  <div class="card-body" style="padding:0.75rem 1rem;font-size:0.85rem;color:#991B1B;">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>{{ sospechosos_count }}</strong> paquete(s) con red sospechosa: su PDV de destino real
+    no coincide con «{{ fq.jt_network_code }}». Podrían ser waybills de otro franquiciado que
+    entraron antes de habilitar esta verificación. Revisa el filtro
+    <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, estado='sospechoso') }}" style="color:#991B1B;text-decoration:underline;">«Red sospechosa»</a> abajo.
+  </div>
+</div>
+{% endif %}
+
+{% if rechazados_recientes %}
+<div class="card" style="margin-bottom:1.25rem;">
+  <div class="card-header">
+    <span class="card-title"><i class="bi bi-shield-x"></i> Waybills rechazados por red no coincidente</span>
+    <span style="font-size:0.75rem;color:var(--text-secondary);font-weight:400;">
+      Descartados automáticamente al sincronizar — no se importaron a este franquiciado.
+    </span>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Waybill</th>
+          <th>Red detectada</th>
+          <th>Red esperada</th>
+          <th>Origen</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rechazados_recientes %}
+        <tr>
+          <td style="font-family:monospace;font-size:0.83rem;">{{ r.waybill_no }}</td>
+          <td>{{ r.red_detectada or '—' }}</td>
+          <td>{{ r.red_esperada or '—' }}</td>
+          <td>{{ r.origen }}</td>
+          <td style="font-size:0.8rem;color:var(--text-secondary);">{{ r.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <!-- ── Fila: Configuración + Últimas alertas ──────────────────────────── -->
 <div class="grid-5-7" style="margin-bottom:1.25rem;">
 
@@ -609,6 +665,13 @@
          class="btn btn-sm {{ 'btn-primary' if estado_filtro == est else 'btn-ghost' }}"
          style="font-size:0.75rem;padding:0.2rem 0.6rem;">{{ label }}</a>
       {% endfor %}
+      {% if sospechosos_count %}
+      <a href="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id, estado='sospechoso', campo_fecha=campo_fecha, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, q=q_waybill) }}"
+         class="btn btn-sm {{ 'btn-primary' if estado_filtro == 'sospechoso' else 'btn-ghost' }}"
+         style="font-size:0.75rem;padding:0.2rem 0.6rem;color:#B91C1C;">
+        <i class="bi bi-exclamation-triangle-fill"></i> Red sospechosa ({{ sospechosos_count }})
+      </a>
+      {% endif %}
     </div>
     <!-- Búsqueda por waybill -->
     <form method="GET" action="{{ url_for('admin.franquiciados_detalle', fq_id=fq.id) }}"
@@ -691,6 +754,12 @@
         <tr>
           <td>
             <span style="font-family:monospace;font-size:0.83rem;letter-spacing:0.02em;">{{ pkg.waybill_no }}</span>
+            {% if pkg.red_sospechosa %}
+            <span class="badge badge-red" title="Red detectada: {{ pkg.red_detectada or '?' }} — no coincide con {{ fq.jt_network_code }}"
+                  style="margin-left:0.3rem;font-size:0.68rem;">
+              <i class="bi bi-exclamation-triangle-fill"></i> red
+            </span>
+            {% endif %}
           </td>
           <td style="text-align:center;">
             <span class="badge {{ badgecls[pkg.estado] }}">{{ pkg.estado }}</span>

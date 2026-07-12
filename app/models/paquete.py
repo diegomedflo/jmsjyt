@@ -74,6 +74,14 @@ class Paquete(db.Model):
     hub_origen             = db.Column(db.String(200), nullable=True)  # initDistributeName
     hub_destino            = db.Column(db.String(200), nullable=True)  # destinationDistributeName
 
+    # ── Verificación de red (segunda capa anti-contaminación cruzada) ──────
+    # red_detectada: último código de red visto para esta guía (de sync o detalle).
+    # red_sospechosa: True si red_detectada no coincide con franquiciado.jt_network_code
+    #   — indica que el waybill pudo haberse importado con datos de OTRO franquiciado
+    #   (el filtro recevierNetworkCode de J&T no siempre filtra correctamente).
+    red_detectada          = db.Column(db.String(200), nullable=True)
+    red_sospechosa         = db.Column(db.Boolean, nullable=False, default=False)
+
     created_at        = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at        = db.Column(
         db.DateTime, nullable=False,

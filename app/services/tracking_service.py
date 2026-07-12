@@ -187,6 +187,27 @@ def _guardar_detalle(paquete: Paquete, detail) -> None:
     paquete.detalle_cargado        = True
 
 
+def _verificar_red(pkg: Paquete, franquiciado: Franquiciado) -> None:
+    """Segunda capa de verificación (retroactiva): al cargar el detalle de un
+    paquete ya importado, contrasta su PDV de destino real contra la red
+    configurada del franquiciado. Detecta contaminación cruzada que haya
+    entrado antes de existir esta verificación en el scraper (ver
+    jt_scraper/outlet_monitor.py) — no borra ni reasigna el paquete
+    automáticamente, solo lo marca para revisión manual del admin.
+    """
+    esperado = (franquiciado.jt_network_code or "").strip().upper()
+    if not esperado:
+        return
+    detectado = (pkg.pdv_destino or "").strip()
+    pkg.red_detectada  = detectado or None
+    pkg.red_sospechosa = bool(detectado) and esperado not in detectado.upper()
+    if pkg.red_sospechosa:
+        logger.warning(
+            f"[{franquiciado.nombre}] {pkg.waybill_no}: RED SOSPECHOSA — "
+            f"detectada={detectado!r} esperada={esperado!r} (posible contaminación cruzada)"
+        )
+
+
 def _guardar_historial(paquete: Paquete, eventos: list) -> None:
     """Reemplaza el historial de tracking del paquete (delete + insert)."""
     TrackingHistorial.query.filter_by(paquete_id=paquete.id).delete()
@@ -302,6 +323,7 @@ def refrescar_franquiciado(
 
             if include_detail:
                 _guardar_detalle(pkg, result.detail)
+                _verificar_red(pkg, franquiciado)
                 # Si el detalle sigue sin cargarse (API no lo devolvió o falló),
                 # marcar igual para no reintentar en cada corrida del cron.
                 if not pkg.detalle_cargado:
@@ -441,6 +463,7 @@ def refrescar_lote_stream(
 
             if include_detail:
                 _guardar_detalle(pkg, result.detail)
+                _verificar_red(pkg, franquiciado)
                 if not pkg.detalle_cargado:
                     pkg.detalle_cargado = True
 

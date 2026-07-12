@@ -333,6 +333,34 @@ ALTER TABLE paquetes
     ADD COLUMN IF NOT EXISTS codigo_despacho    VARCHAR(100),
     ADD COLUMN IF NOT EXISTS pdv_destino        VARCHAR(200);
 
+-- v2.5 (ver sql/migrate_v2_5_red_verificacion.sql): segunda capa de
+-- verificación de red — evita/detecta contaminación cruzada entre
+-- franquiciados (el filtro recevierNetworkCode de J&T no siempre filtra
+-- correctamente, ver jt_scraper/outlet_monitor.py).
+ALTER TABLE franquiciados
+    ADD COLUMN IF NOT EXISTS jt_network_code VARCHAR(50);
+
+ALTER TABLE paquetes
+    ADD COLUMN IF NOT EXISTS red_detectada  VARCHAR(200),
+    ADD COLUMN IF NOT EXISTS red_sospechosa BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE excel_imports
+    ADD COLUMN IF NOT EXISTS rechazados INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS waybills_rechazados (
+    id              SERIAL       PRIMARY KEY,
+    franquiciado_id INTEGER      NOT NULL
+                    REFERENCES franquiciados(id) ON DELETE CASCADE,
+    waybill_no      VARCHAR(120) NOT NULL,
+    red_detectada   VARCHAR(200),
+    red_esperada    VARCHAR(50),
+    origen          VARCHAR(20)  NOT NULL DEFAULT 'sync',
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_waybills_rechazados_franq
+    ON waybills_rechazados(franquiciado_id, created_at DESC);
+
 
 -- ── Admin user inicial ────────────────────────────────────────
 -- usuario: admin | contrasena: Mateo1997

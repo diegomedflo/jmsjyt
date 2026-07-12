@@ -13,7 +13,7 @@ from flask_login import login_required
 from app.extensions import db
 from app.models import (
     AdminUser, AlertaLog, Configuracion, CronLog,
-    Franquiciado, Paquete,
+    Franquiciado, Paquete, WaybillRechazado,
 )
 from app.models.excel_import import ExcelImport
 
@@ -63,6 +63,7 @@ def franquiciados_nuevo():
             nombre                =form.nombre.data.strip(),
             jt_user               =form.jt_user.data.strip(),
             jt_pass               =form.jt_pass.data,
+            jt_network_code       =(form.jt_network_code.data or "").strip() or None,
             wa_grupo_id           =form.wa_grupo_id.data.strip(),
             wa_status_grupo_id    =form.wa_status_grupo_id.data.strip() or None,
             textmebot_api_key     =form.textmebot_api_key.data.strip(),
@@ -97,7 +98,9 @@ def franquiciados_detalle(fq_id: int):
     q_pkg = Paquete.query.filter_by(franquiciado_id=fq_id)
     if q_waybill:
         q_pkg = q_pkg.filter(Paquete.waybill_no.ilike(f"%{q_waybill}%"))
-    if estado:
+    if estado == "sospechoso":
+        q_pkg = q_pkg.filter(Paquete.red_sospechosa.is_(True))
+    elif estado:
         q_pkg = q_pkg.filter_by(estado=estado)
 
     # Filtros de fecha
@@ -127,6 +130,13 @@ def franquiciados_detalle(fq_id: int):
         AlertaLog.enviado_at.desc()
     ).limit(20).all()
 
+    sospechosos_count = Paquete.query.filter_by(
+        franquiciado_id=fq_id, red_sospechosa=True,
+    ).count()
+    rechazados_recientes = WaybillRechazado.query.filter_by(
+        franquiciado_id=fq_id,
+    ).order_by(WaybillRechazado.created_at.desc()).limit(30).all()
+
     def _to_peru(dt):
         """Convierte datetime UTC a hora Perú (UTC-5). Devuelve None si dt es None."""
         if dt is None:
@@ -151,6 +161,8 @@ def franquiciados_detalle(fq_id: int):
         last_wa_estado_peru=_to_peru(fq.last_wa_estado_at),
         last_tracking_peru=_to_peru(fq.last_tracking_at),
         cfg=cfg,
+        sospechosos_count=sospechosos_count,
+        rechazados_recientes=rechazados_recientes,
     )
 
 
@@ -269,6 +281,7 @@ def franquiciados_editar(fq_id: int):
         fq.jt_user               = form.jt_user.data.strip()
         if form.jt_pass.data:
             fq.jt_pass = form.jt_pass.data
+        fq.jt_network_code       = (form.jt_network_code.data or "").strip() or None
         fq.wa_grupo_id           = form.wa_grupo_id.data.strip()
         fq.wa_status_grupo_id    = form.wa_status_grupo_id.data.strip() or None
         fq.textmebot_api_key     = form.textmebot_api_key.data.strip()
@@ -492,6 +505,7 @@ def paquetes_sincronizar(fq_id: int):
     from jt_scraper.outlet_monitor import OutletMonitor
     from jt_scraper.instance_config import JTInstanceConfig
     from app.services.importar_service import import_waybills
+    from app.services.red_verificacion import registrar_rechazados
     from app.models import Configuracion
 
     fq  = db.get_or_404(Franquiciado, fq_id)
@@ -505,13 +519,35 @@ def paquetes_sincronizar(fq_id: int):
     )
 
     try:
-        monitor    = OutletMonitor(instance_cfg)
+        monitor    = OutletMonitor(instance_cfg, expected_network=fq.jt_network_code)
         start_date = (date.today() - timedelta(days=cfg.sync_dias_atras)).isoformat()
         end_date   = date.today().isoformat()
         waybills   = monitor.fetch_waybills(start_date, end_date, time_type=cfg.sync_time_type)
+        rechazados = registrar_rechazados(fq_id, monitor.last_rejected)
+
+        # Circuit breaker: si la MAYORÍA de lo devuelto por J&T no coincide con
+        # la red esperada, el filtro recevierNetworkCode probablemente falló
+        # por completo esta vez (no son casos aislados) — ver outlet_monitor.py.
+        if monitor.contamination_alert:
+            flash(
+                f"🚨 SINCRONIZACIÓN DETENIDA — el {monitor.contamination_ratio:.0%} de lo que "
+                f"devolvió J&T ({rechazados} de {rechazados + len(waybills)}) no coincide con la "
+                f"red esperada ({fq.jt_network_code}). Esto indica que el filtro de J&T falló "
+                f"por completo, no un par de registros sueltos. No se importó nada — "
+                f"revisa la auditoría y vuelve a intentar más tarde.",
+                "danger",
+            )
+            return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
 
         if not waybills:
-            flash("El scraper no encontró waybills en el portal.", "warning")
+            if rechazados:
+                flash(
+                    f"El scraper no encontró waybills válidos: {rechazados} descartado(s) "
+                    f"por no coincidir con la red esperada ({fq.jt_network_code}).",
+                    "warning",
+                )
+            else:
+                flash("El scraper no encontró waybills en el portal.", "warning")
             return redirect(url_for("admin.franquiciados_detalle", fq_id=fq_id))
 
         result = import_waybills(
@@ -519,12 +555,15 @@ def paquetes_sincronizar(fq_id: int):
             waybills=waybills,
             filename=f"auto_sync_{end_date}.xlsx",
             import_mode="auto",
+            rechazados=rechazados,
         )
-        flash(
+        msg = (
             f"Sincronización completa: {result['nuevos']} nuevo(s), "
-            f"{result['duplicados']} duplicado(s). Total encontrado: {result['total']}.",
-            "success",
+            f"{result['duplicados']} duplicado(s). Total encontrado: {result['total']}."
         )
+        if rechazados:
+            msg += f" ⚠️ {rechazados} descartado(s) por red no coincidente — revisar en auditoría."
+        flash(msg, "success" if not rechazados else "warning")
     except Exception as exc:
         current_app.logger.exception(f"Error en sincronización franq={fq_id}")
         flash(f"Error en sincronización: {exc}", "danger")
@@ -571,6 +610,7 @@ def wa_importar(fq_id: int):
     from jt_scraper.outlet_monitor import OutletMonitor
     from jt_scraper.instance_config import JTInstanceConfig
     from app.services.importar_service import import_waybills
+    from app.services.red_verificacion import registrar_rechazados
     from app.services.whatsapp_service import enviar_whatsapp
     from app.models import Configuracion
 
@@ -585,13 +625,24 @@ def wa_importar(fq_id: int):
     )
 
     try:
-        monitor    = OutletMonitor(instance_cfg)
+        monitor    = OutletMonitor(instance_cfg, expected_network=fq.jt_network_code)
         start_date = (date.today() - timedelta(days=cfg.sync_dias_atras)).isoformat()
         end_date   = date.today().isoformat()
         waybills   = monitor.fetch_waybills(start_date, end_date, time_type=cfg.sync_time_type)
+        rechazados = registrar_rechazados(fq_id, monitor.last_rejected)
 
-        if not waybills:
+        if monitor.contamination_alert:
+            msg = (
+                f"🚨 Importación DETENIDA — {monitor.contamination_ratio:.0%} de lo devuelto por "
+                f"JMS no coincide con la red esperada ({fq.jt_network_code}). Filtro de J&T "
+                f"probablemente falló por completo. No se importó nada."
+            )
+            enviar_whatsapp(fq.textmebot_api_key, fq.wa_grupo_id, msg)
+            flash(msg, "danger")
+        elif not waybills:
             msg = "⚠️ No se encontraron paquetes en JMS para el rango de fechas consultado."
+            if rechazados:
+                msg += f"\n({rechazados} descartado(s) por red no coincidente — ver auditoría)"
             enviar_whatsapp(fq.textmebot_api_key, fq.wa_grupo_id, msg)
             flash("JMS no devolvió paquetes. Se notificó al grupo.", "warning")
         else:
@@ -600,19 +651,23 @@ def wa_importar(fq_id: int):
                 waybills=waybills,
                 filename=f"admin_wa_importar_{end_date}",
                 import_mode="wa_admin",
+                rechazados=rechazados,
             )
             wa_msg = (
                 f"✅ *Importación completada (admin)*\n"
                 f"• Paquetes nuevos: *{result['nuevos']}*\n"
                 f"• Duplicados (ya existían): *{result['duplicados']}*\n"
-                f"• Total procesados: *{result['total']}*\n\n"
-                f"_Usa /estado para ver el resumen actualizado._"
+                f"• Total procesados: *{result['total']}*\n"
+                + (f"• ⚠️ Descartados (red no coincidente): *{rechazados}*\n" if rechazados else "")
+                + f"\n_Usa /estado para ver el resumen actualizado._"
             )
             enviar_whatsapp(fq.textmebot_api_key, fq.wa_grupo_id, wa_msg)
             flash(
                 f"Importación completada: {result['nuevos']} nuevo(s), "
-                f"{result['duplicados']} duplicado(s). Resultado enviado al grupo WA.",
-                "success",
+                f"{result['duplicados']} duplicado(s)"
+                + (f", {rechazados} descartado(s) por red." if rechazados else ".")
+                + " Resultado enviado al grupo WA.",
+                "success" if not rechazados else "warning",
             )
 
         fq.last_wa_import_at = datetime.utcnow()

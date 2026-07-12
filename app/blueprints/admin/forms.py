@@ -21,6 +21,9 @@ class FranquiciadoForm(FlaskForm):
     nombre            = StringField("Nombre",        validators=[DataRequired(), Length(max=120)])
     jt_user           = StringField("Usuario JMS",   validators=[DataRequired(), Length(max=120)])
     jt_pass           = PasswordField("Contraseña JMS", validators=[Length(max=255)])
+    jt_network_code   = StringField(
+        "Código de red JMS (ARE)", validators=[Optional(), Length(max=50)],
+    )
     wa_grupo_id       = StringField("ID Grupo WhatsApp (alertas)",  validators=[DataRequired(), Length(max=120)])
     wa_status_grupo_id = StringField("ID Grupo WhatsApp (monitoreo)",validators=[Optional(), Length(max=120)])
     textmebot_api_key = StringField("API Key textmebot", validators=[DataRequired(), Length(max=120)])

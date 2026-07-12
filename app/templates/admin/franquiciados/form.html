@@ -58,6 +58,18 @@
                        autocomplete="new-password" />
                 {% if form.jt_pass.errors %}<span class="form-error">{{ form.jt_pass.errors[0] }}</span>{% endif %}
               </div>
+              <div class="form-group col-full">
+                <label class="form-label">Código de red JMS (ARE)</label>
+                <input type="text" name="jt_network_code" class="form-control"
+                       value="{{ form.jt_network_code.data or '' }}"
+                       placeholder="Ej: ARE-22" style="font-family:monospace;" />
+                <span class="form-hint">
+                  Segunda capa de verificación: cada waybill que trae el scraper se
+                  contrasta contra este código (RECEIVER_NETWORK_NAME de JMS) antes de
+                  asociarlo a este franquiciado. Vacío = verificación deshabilitada.
+                </span>
+                {% if form.jt_network_code.errors %}<span class="form-error">{{ form.jt_network_code.errors[0] }}</span>{% endif %}
+              </div>
             </div>
           </div>
 

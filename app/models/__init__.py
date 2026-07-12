@@ -6,6 +6,7 @@ from .paquete          import Paquete, TrackingHistorial
 from .log              import CronLog, CronLogDetalle, AlertaLog
 from .configuracion    import Configuracion
 from .excel_import     import ExcelImport
+from .waybill_rechazado import WaybillRechazado
 
 __all__ = [
     "AdminUser",
@@ -18,4 +19,5 @@ __all__ = [
     "AlertaLog",
     "Configuracion",
     "ExcelImport",
+    "WaybillRechazado",
 ]
